@@ -7,6 +7,18 @@ from an external camera and superimposes the external camera below the ECM frame
 
 Steps to Setup ROS for Cameras:
 
+1. Connect green ethernet to USB-to-Ethernet adapter and connect to USB port (pi IP address: 192.168.1.12)
+2. Connect blue ethernet to wired ethernet
+3. In connection settings (top right of ubuntu):
+    - Under 'PCI Ethernet Connected' or 'wired ethernet':
+        set it to 'Wired Ethernet' 
+    - Under 'Ethernet Connected' or 'USB Ethernet' set it to 'USB Ethernet'
+4. (this step should already be done) $ifconfig should show 'eno1' with inet: 192.168.0.11
+  and 'enx00e05a001959' with inet: 192.168.1.13 (note the names for these two ports may change)
+  If these are not the IP addresses showing, configure these IP address with:
+  $sudo ifconfig <ethernet port name> <desired IP from above> netmask 255.255.255.0 up
+  Note: these should match what the wired ethertnet GUI has for 'USB Ethernet' and 'Wired Ethernet' profiles
+
 1. $roscore on dVRK-pc2
 2. $roslaunch dvrk_robot jhu_daVinci_video.launch rig_name:=ubc_dVRK_ECM
     - Gets the left/right ECM feeds with topics:
@@ -19,9 +31,9 @@ Steps to Setup ROS for Cameras:
     - Starts left external camera video feed with ros topic:
     'raspicam_node_left/image/compressed'
 
-4. ssh pi@192.168.0.12 => Enters right pi
+4. ssh pi@192.168.1.12 => Enters right pi
  4.2 export ROS_IP=192.168.0.12
- 4.3 export ROS_MASTER_URI=http://192.168.0.11:11311
+ 4.3 export ROS_MASTER_URI=http://192.168.1.13:11311
  4.4 roslaunch raspicam_node camerav2_1280x960.launch
     - Starts right external camera video feed with ros topic:
     'raspicam_node_right/image/compressed'
@@ -34,7 +46,6 @@ import rospy
 from sensor_msgs.msg import CompressedImage
 import cv2
 from cv_bridge import CvBridge
-import Tkinter as tk
 
 #ROS Topics
 RightECM_Topic='ubc_dVRK_ECM/right/decklink/camera/image_raw/compressed'
@@ -50,76 +61,49 @@ class ECMVideoStreamer:
         self.bridge=CvBridge()
 
         #TKinter Window Setup
-        self.window=tk.Tk()
-        self.window.title("Autocam Video Streamer")
 
         #Subscribing to ROS Topics
         rospy.Subscriber(name=RightECM_Topic,data_class=CompressedImage,callback=self.rightECMCallback,queue_size=1,buff_size=2**20)
         rospy.Subscriber(name=LeftECM_Topic,data_class=CompressedImage,callback=self.leftECMCallback,queue_size=1,buff_size=2**20)
+      
         
         rospy.Subscriber(name=RightExternal_Topic,data_class=CompressedImage,callback=self.rightExternalCallback,queue_size=1,buff_size=2**20)
         rospy.Subscriber(name=LeftExternal_Topic,data_class=CompressedImage,callback=self.leftExternalCallback,queue_size=1,buff_size=2**20)
 
         #Frames Init
-        self.ecm_frame_right = None
-        self.ecm_frame_left = None 
         self.external_frame_left = None
         self.external_frame_right = None 
+        self.ecm_frame_left = None 
+        self.ecm_frame_right = None
 
-        #Booleans init
-        self.ranOnce=0
 
-        #Initializing video frames
-        cv2.namedWindow("left_eye",cv2.WINDOW_NORMAL)
-        cv2.namedWindow("right_eye",cv2.WINDOW_NORMAL)
-        print("Named Window")
+        rospy.spin()
         
 
-        #Execution Loop
-        rospy.sleep(1)
 
-        #rospy.Timer(rospy.Duration(0.001),self.showFramesCallback)
-        #rospy.spin()
+    def showFramesCallback(self):
         
-        self.window.after(1,self.showFramesCallback)
-        self.window.mainloop()
-
-
-
-    def showFramesCallback(self,event=None):
-        
-        if self.ranOnce>=2 and (self.ecm_frame_left is not None):
-            print("Callback Entered")
-            #Getting Superimposed Frames
-            superimposed_frame_left=self.superimposeView(self.ecm_frame_left,self.external_frame_left)
-            superimposed_frame_right=self.superimposeView(self.ecm_frame_right,self.external_frame_right)
-
+        if self.ecm_frame_left is not None:
+            superimposed_left=self.superimposeView(self.ecm_frame_left,self.external_frame_left)
+            superimposed_right=self.superimposeView(self.ecm_frame_right,self.external_frame_right)
             #Showing Frames
-            cv2.imshow("left_eye",superimposed_frame_left)
-            cv2.imshow('right_eye',superimposed_frame_right)
-            cv2.waitKey(1)
-        self.window.after(1,self.showFramesCallback)
-
+            cv2.imshow("left_eye",superimposed_left)
+            cv2.imshow('right_eye',superimposed_right)
+            keys=cv2.waitKey(1) & 0xFF
+            if keys==ord('q'):
+                print("Entered")
 
     #Callbacks for video feeds:
-    def leftECMCallback(self,data):
-        print("Left Callback")
-        self.ecm_frame_left=self.bridge.compressed_imgmsg_to_cv2(data,'passthrough')        
-        self.ranOnce+=1
-        
-        #superimposed_frame=self.superimposeView(self.ecm_frame_left,self.external_frame_left)
-        #cv2.imshow('left_eye',superimposed_frame)
     def rightECMCallback(self,data):
-        print("Right Callback")
         self.ecm_frame_right=self.bridge.compressed_imgmsg_to_cv2(data,'passthrough')
-        self.ranOnce+=1
-        #superimposed_frame=self.superimposeView(self.ecm_frame_right,self.external_frame_right)
-        #cv2.imshow('right_eye',superimposed_frame)
+        self.showFramesCallback()
 
-        
+    def leftECMCallback(self,data):
+        self.ecm_frame_left=self.bridge.compressed_imgmsg_to_cv2(data,'passthrough')        
 
     def leftExternalCallback(self,data):
         self.external_frame_left=self.bridge.compressed_imgmsg_to_cv2(data,'passthrough')
+
     def rightExternalCallback(self,data):
         self.external_frame_right=self.bridge.compressed_imgmsg_to_cv2(data,'passthrough')
 
@@ -144,9 +128,8 @@ class ECMVideoStreamer:
 
 
 
-
 if __name__=='__main__':
-    rospy.init_node('ECM_VideoStreamer')
-    rospy.Rate(10000)
+    rospy.init_node('ECM_VideoStreamer',anonymous=True)
+    #rospy.Rate(10000)
     video_streamer=ECMVideoStreamer()
-    cv2.destroyAllWindows()
+    
