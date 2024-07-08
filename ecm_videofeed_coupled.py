@@ -7,7 +7,13 @@ from an external camera and superimposes the external camera below the ECM frame
 
 Steps to Setup ROS for Cameras:
 
-1. Connect green ethernet to USB-to-Ethernet adapter and connect to USB port (pi IP address: 192.168.1.12)
+1. Connect green ethernet to USB-to-Ethernet adapter and connect to USB port, then:
+    1.1 press 'Ethernet Connection' and under that select 'wired connection'
+    1.2 $ssh pi@192.168.0.12
+    1.3 $sudo ifconfig eth0 192.168.1.12 netmask 255.255.255.0 up
+
+    Don't close terminal!
+
 2. Connect blue ethernet to wired ethernet
 3. In connection settings (top right of ubuntu):
     - Under 'PCI Ethernet Connected' or 'wired ethernet':
@@ -19,22 +25,22 @@ Steps to Setup ROS for Cameras:
   $sudo ifconfig <ethernet port name> <desired IP from above> netmask 255.255.255.0 up
   Note: these should match what the wired ethertnet GUI has for 'USB Ethernet' and 'Wired Ethernet' profiles
 
-1. $roscore on dVRK-pc2
-2. $roslaunch dvrk_robot jhu_daVinci_video.launch rig_name:=ubc_dVRK_ECM
+5. $roscore on dVRK-pc2
+6. $roslaunch dvrk_robot jhu_daVinci_video.launch rig_name:=ubc_dVRK_ECM
     - Gets the left/right ECM feeds with topics:
     'ubc_dVRK_ECM/right/decklink/camera/image_raw/compressed'
     'ubc_dVRK_ECM/left/decklink/camera/image_raw/compressed'
-3. ssh pi@192.168.0.10 => Enters left pi
- 3.2 export ROS_IP=192.168.0.10
- 3.3 export ROS_MASTER_URI=http://192.168.0.11:11311
- 3.4 roslaunch raspicam_node camerav2_1280x960.launch
+7. ssh pi@192.168.0.10 => Enters left pi
+ 7.2 export ROS_IP=192.168.0.10
+ 7.3 export ROS_MASTER_URI=http://192.168.0.11:11311
+ 7.4 roslaunch raspicam_node camerav2_1280x960.launch
     - Starts left external camera video feed with ros topic:
     'raspicam_node_left/image/compressed'
 
-4. ssh pi@192.168.1.12 => Enters right pi
- 4.2 export ROS_IP=192.168.0.12
- 4.3 export ROS_MASTER_URI=http://192.168.1.13:11311
- 4.4 roslaunch raspicam_node camerav2_1280x960.launch
+8. ssh pi@192.168.1.12 => Enters right pi
+ 8.2 export ROS_IP=192.168.1.12
+ 8.3 export ROS_MASTER_URI=http://192.168.1.13:11311
+ 8.4 roslaunch raspicam_node camerav2_1280x960.launch
     - Starts right external camera video feed with ros topic:
     'raspicam_node_right/image/compressed'
 
@@ -46,13 +52,24 @@ import rospy
 from sensor_msgs.msg import CompressedImage
 import cv2
 from cv_bridge import CvBridge
+import numpy as np
 
 #ROS Topics
 RightECM_Topic='ubc_dVRK_ECM/right/decklink/camera/image_raw/compressed'
 LeftECM_Topic='ubc_dVRK_ECM/left/decklink/camera/image_raw/compressed'
 RightExternal_Topic='raspicam_node_right/image/compressed'
 LeftExternal_Topic='raspicam_node_left/image/compressed'
-SIZE_REDUCTION_PERCENTAGE=0.5 #Amount that external frame is reduced from original
+SIZE_REDUCTION_PERCENTAGE_ECM=0.365 #Amount that external frame is reduced from original
+SIZE_REDUCTION_PERCENTAGE_EXTERNAL=0.4
+EXTERNAL_WIDTH=int(round(SIZE_REDUCTION_PERCENTAGE_EXTERNAL*1280))
+EXTERNAL_HEIGHT=int(round(SIZE_REDUCTION_PERCENTAGE_EXTERNAL*960))
+
+ECM_WIDTH=int(round(SIZE_REDUCTION_PERCENTAGE_ECM*1400))
+ECM_HEIGHT=int(round(SIZE_REDUCTION_PERCENTAGE_ECM*986))
+
+VIEW_WINDOW_WIDTH=1024
+VIEW_WINDOW_HEIGHT=768
+
 
 class ECMVideoStreamer:
     def __init__(self):
@@ -87,8 +104,10 @@ class ECMVideoStreamer:
             superimposed_left=self.superimposeView(self.ecm_frame_left,self.external_frame_left)
             superimposed_right=self.superimposeView(self.ecm_frame_right,self.external_frame_right)
             #Showing Frames
-            cv2.imshow("left_eye",superimposed_left)
+            cv2.imshow('left_eye',superimposed_left)
             cv2.imshow('right_eye',superimposed_right)
+            cv2.imshow('left_eye_desktop_view',superimposed_left)
+            cv2.imshow('right_eye_desktop_view',superimposed_right)
             keys=cv2.waitKey(1) & 0xFF
             if keys==ord('q'):
                 print("Entered")
@@ -110,21 +129,46 @@ class ECMVideoStreamer:
     #Superimpose the external view on bottom right corner of each ecm frame
     def superimposeView(seld,ecm_frame,external_frame):
         #Input: ecm frame (ecm_frame); external camera frame: external_frame
-        #Output: ecm frame with external camera frame on bottom right corner (superimposed_frame)
+        #Output: ecm frame with external camera frame on bottom right below ecm (superimposed_frame)
         if external_frame is not None:
-            h,w,_=external_frame.shape  #height/width of external camera frame
+            ecm_frame_new=cv2.resize(ecm_frame,(ECM_WIDTH,ECM_HEIGHT),interpolation=cv2.INTER_LINEAR)
+            external_frame_new=cv2.resize(external_frame,(EXTERNAL_WIDTH,EXTERNAL_HEIGHT),interpolation=cv2.INTER_LINEAR)
+            
+            superimposed_frame=np.zeros((VIEW_WINDOW_HEIGHT,VIEW_WINDOW_WIDTH,3),np.uint8)
+            superimposed_frame[0:ECM_HEIGHT,int(round((VIEW_WINDOW_WIDTH-ECM_WIDTH)/2)):int(round((VIEW_WINDOW_WIDTH-ECM_WIDTH)/2))+ECM_WIDTH]=ecm_frame_new
+            superimposed_frame[-EXTERNAL_HEIGHT:,int(round((VIEW_WINDOW_WIDTH-EXTERNAL_WIDTH)/2)):int(round((VIEW_WINDOW_WIDTH-EXTERNAL_WIDTH)/2))+EXTERNAL_WIDTH]=external_frame_new
+            #superimposed_frame[ECM_HEIGHT+1:,-EXTERNAL_WIDTH-((ECM_WIDTH-EXTERNAL_WIDTH)/2):]=external_frame
 
-            h_external=h*SIZE_REDUCTION_PERCENTAGE
-            w_external=w*SIZE_REDUCTION_PERCENTAGE
-            h_external=int(round(h_external))
-            w_external=int(round(w_external))
-            external_frame_new=cv2.resize(external_frame,(w_external,h_external),interpolation=cv2.INTER_LINEAR)
-            superimposed_frame=ecm_frame
-            superimposed_frame[-h_external:,-w_external:,:]=external_frame_new
+            # h_external=h*SIZE_REDUCTION_PERCENTAGE
+            # w_external=w*SIZE_REDUCTION_PERCENTAGE
+            # h_external=int(round(h_external))
+            # w_external=int(round(w_external))
+            # external_frame_new=cv2.resize(external_frame,(w_external,h_external),interpolation=cv2.INTER_LINEAR)
+            # superimposed_frame=ecm_frame
+            # superimposed_frame[-h_external:,-w_external:,:]=external_frame_new
         else:
-            superimposed_frame=ecm_frame
+            ecm_frame_new=cv2.resize(ecm_frame,(ECM_WIDTH,ECM_HEIGHT),interpolation=cv2.INTER_LINEAR)
+            superimposed_frame=np.zeros((VIEW_WINDOW_HEIGHT,VIEW_WINDOW_WIDTH,3),np.uint8)
+            superimposed_frame[0:ECM_HEIGHT,int(round((VIEW_WINDOW_WIDTH-ECM_WIDTH)/2)):int(round((VIEW_WINDOW_WIDTH-ECM_WIDTH)/2))+ECM_WIDTH]=ecm_frame_new
 
-        return superimposed_frame   
+        return superimposed_frame
+
+
+        
+        # if external_frame is not None:
+        #     h,w,_=external_frame.shape  #height/width of external camera frame
+
+        #     h_external=h*SIZE_REDUCTION_PERCENTAGE
+        #     w_external=w*SIZE_REDUCTION_PERCENTAGE
+        #     h_external=int(round(h_external))
+        #     w_external=int(round(w_external))
+        #     external_frame_new=cv2.resize(external_frame,(w_external,h_external),interpolation=cv2.INTER_LINEAR)
+        #     superimposed_frame=ecm_frame
+        #     superimposed_frame[-h_external:,-w_external:,:]=external_frame_new
+        # else:
+        #     superimposed_frame=ecm_frame
+
+        # return superimposed_frame   
 
 
 
