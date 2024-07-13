@@ -66,7 +66,9 @@ def load_and_set_calibration():
 
     return offset_vec
 
-
+#psm3_T_cam = offset from psm point to camera
+#ecm_T_R = pose of the ring in the ECM coordinate frame
+#ecm_T_w = world pose in frame of ECM 
 def orient_camera(psm3_T_cam, ecm_T_R, ecm_T_w, z_i, df, offset):
 
     y_R = pm.toMatrix(ecm_T_R)[0:3, 1]
@@ -80,8 +82,9 @@ def orient_camera(psm3_T_cam, ecm_T_R, ecm_T_w, z_i, df, offset):
 
     # print(sgn1 * sgn2)
 
-    z_cam = - sgn2 * y_R 
-
+    #this was causing a weird flipping of the camera? 
+    # z_cam = - sgn2 * y_R 
+    z_cam = -1 * y_R 
 
     x_cam = np.cross(z_w, z_cam) / LA.norm(np.cross(z_w, z_cam))
     y_cam = np.cross(z_cam, x_cam) / LA.norm(np.cross(z_cam, x_cam))
@@ -132,11 +135,14 @@ def compute_intermediate(psm3_T_cam, ecm_T_R, ecm_T_w, df, offset):
     return ecm_T_psm3_desired
 
 #Computes whether or not a point is within a cube defined by 5 points: A,B,C,D,E where A,B,C,D represent the base and E is an arbitrary point that defines the height of the cube
-def point_in_cube(P, A, B, C, D, E):
+def point_in_cube(P, A, B, C, D, E, verbose):
     # Create vectors for the base
     AB = B - A
+    BC = C - B
     AC = C - A
     AD = D - A
+    CD = D - C
+    DA = A - D
     
     # Normal vector of the base plane
     n_base = np.cross(AB, AC)
@@ -155,14 +161,14 @@ def point_in_cube(P, A, B, C, D, E):
     C_top = C + height_vector
     D_top = D + height_vector
     
-    # Define the normal vectors for the six faces of the cube (pointing outwards)
+    # Define the normal vectors for the six faces of the cube (pointing inwards)
     normals = [
         n_base,                     # Bottom face (ABCD)
         -n_base,                    # Top face (A_top, B_top, C_top, D_top)
         np.cross(AB, height_vector), # Side face (AB, A_top, B_top, B)
-        np.cross(AC, height_vector), # Side face (AC, A_top, C_top, C)
+        np.cross(BC, height_vector), # Side face (AC, A_top, C_top, C)
         np.cross(AD, height_vector), # Side face (AD, A_top, D_top, D)
-        -np.cross(AB, AC)            # Opposite side face
+        np.cross(CD, height_vector)            # Opposite side face
     ]
     
     # Base and top vertices
@@ -181,27 +187,107 @@ def point_in_cube(P, A, B, C, D, E):
     # Check bottom face (ABCD)
     for vertex in vertices_base:
         if not point_on_correct_side(P, vertex, -1*normals[0]):
-            print("wrong side of base")
+            if verbose:
+                print("wrong side of base")
             return False
     
     # Check top face (A_top, B_top, C_top, D_top)
     for vertex in vertices_top:
         if not point_on_correct_side(P, vertex, -1*normals[1]):
-            print("wrong side of top")
+            if verbose:
+                print("wrong side of top")
             return False
     
     # Check side faces
     for i in range(4):
-        if not point_on_correct_side(P, vertices_base[i], normals[i + 2]):
-            print("wrong side of the sides")
+        if not point_on_correct_side(P, vertices_base[i], -1*normals[i + 2]):
+            if verbose:
+                print("wrong side of the sides " + str(i+1))
             return False
     
     return True
 
-#PURPOSE: Given the current PSM3 and PSM1 pose, compute the pose of PSM3 that keeps PSM3 position constant but alters its orientation such that it views the centroid of PSM1
-def computeSecondaryPose(currentPSM3pose,currentPSM1pose):
+#Computes whether or not a point is below a floor defined by 5 points: A,B,C,D,E where A,B,C,D represent the base and E is an arbitrary point that defines the height of the cube
+def point_below_floor(P, A, B, C, D, E, verbose):
+    # Create vectors for the base
+    AB = B - A
+    BC = C - B
+    AC = C - A
+    AD = D - A
+    CD = D - C
     
-    return
+    # Normal vector of the base plane
+    n_base = np.cross(AB, AC)
+    n_base = n_base / np.linalg.norm(n_base)
+    
+    # Ensure the normal vector is pointing outwards (negative z direction)
+    if np.dot(n_base, A) > np.dot(n_base, A + np.array([0, 0, -1])):
+        n_base = -n_base
+    
+    # Height vector based on point E
+    height_vector = np.dot((E - A), n_base) * n_base
+    
+    # Calculate the top face vertices
+    A_top = A + height_vector
+    B_top = B + height_vector
+    C_top = C + height_vector
+    D_top = D + height_vector
+    
+    # Define the normal vectors for the six faces of the cube (pointing inwards)
+    normals = [
+        n_base,                     # Bottom face (ABCD)
+        -n_base,                    # Top face (A_top, B_top, C_top, D_top)
+        np.cross(AB, height_vector), # Side face (AB, A_top, B_top, B)
+        np.cross(BC, height_vector), # Side face (AC, A_top, C_top, C)
+        np.cross(AD, height_vector), # Side face (AD, A_top, D_top, D)
+        np.cross(CD, height_vector)            # Opposite side face
+    ]
+    
+    # Base and top vertices
+    vertices_base = [A, B, C, D]
+    vertices_top = [A_top, B_top, C_top, D_top]
+
+    width = np.linalg.norm(AB) #base dimension
+    length = np.linalg.norm(AD) #base dimension
+    height = np.linalg.norm(height_vector)
+    #print(f"Width = {width} m, length = {length} m, height = {height} m")
+    
+    # Function to check if point P is on the correct side of a plane
+    def point_on_correct_side(P, V, normal):
+        return np.dot(P - V, normal) <= 0
+    
+    # Check bottom face (ABCD)
+    camera_width = 0.0
+    for vertex in vertices_base:
+        #note that we add the height vector to the vertices because we want to account for the size of the camera
+        if not point_on_correct_side(P, vertex + camera_width/2*height_vector/np.linalg.norm(height_vector), -1 * normals[0]):
+            if verbose:
+                print("wrong side of base")
+            return True
+    
+    return False
+
+#PURPOSE: Given the current PSM3 and PSM1 pose, compute the pose of PSM3 that keeps PSM3 position constant but alters its orientation such that it views the centroid of PSM1
+def computeSecondaryPose(currentPSM3pose, psm3_T_cam, ecm_T_R, ecm_T_w, offset):
+    #keep position the same but change the rotation
+
+    #compute vector pointing at ring from current position
+    ecm_T_cam = currentPSM3pose*psm3_T_cam
+    z_psm3 = (pm.toMatrix(ecm_T_R)[0:3, 3] - pm.toMatrix(ecm_T_cam)[0:3, 3] - np.array([offset.x(),offset.y(),offset.z()]) ) / LA.norm((pm.toMatrix(ecm_T_R)[0:3, 3] - pm.toMatrix(ecm_T_cam)[0:3, 3]) - np.array([offset.x(),offset.y(),offset.z()]) )
+    #compute y vector
+    z_w = pm.toMatrix(ecm_T_w)[0:3, 2] / LA.norm(pm.toMatrix(ecm_T_w)[0:3, 2])
+    x_psm3 = -1 * np.cross(z_psm3,z_w)/LA.norm(np.cross(z_psm3,z_w))
+    #compute x vector
+    y_psm3 = np.cross(z_psm3, x_psm3)
+
+    x_cam_vec = PyKDL.Vector(x_psm3[0], x_psm3[1], x_psm3[2])
+    y_cam_vec = PyKDL.Vector(y_psm3[0], y_psm3[1], y_psm3[2])
+    z_cam_vec = PyKDL.Vector(z_psm3[0], z_psm3[1], z_psm3[2])
+    ecm_R_psm3 = PyKDL.Rotation(x_cam_vec, y_cam_vec, z_cam_vec)
+    
+    secondaryPose = PyKDL.Frame(ecm_R_psm3,currentPSM3pose.p)
+
+    return secondaryPose
 
 ## When the state is distabled, then don't run teloperation
 def disabled():
@@ -265,7 +351,7 @@ if __name__ == '__main__':
     input("    Press Enter to start autonomous tracking...")
     
     #gather points for noGoZone
-    psm1_calib_pose = pickle.load(open("psm1_pose.p", "rb"))
+    psm1_calib_pose = pickle.load(open("psm1_pose_noGo.p", "rb"))
     points = []
     for p in range(len(psm1_calib_pose)):
         points.append(pm.toMatrix(psm1_calib_pose[p])[0:3, 3])
@@ -299,9 +385,18 @@ if __name__ == '__main__':
 
         # prev_sgn = curr_sgn
 
-        inNoGo = point_in_cube(pm.toMatrix(ecm_T_psm3_desired_Pose)[0:3,3], points[0], points[1], points[2], points[3], points[4])
-        if (inNoGo):
-            ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose, ecm_T_R)
+        inNoGo = point_in_cube(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4], verbose= False)
+        belowFloor = point_below_floor(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3], points[0], points[1], points[2], points[3], points[4], verbose= True)
+       
+        if (inNoGo or belowFloor):
+            ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+            psm3.move_cp(ecm_T_psm3_secondaryPose)
+            print("Secondary Pose below")
+            print(ecm_T_psm3_secondaryPose)
+            print("Primary Pose Below")
+            print(psm3_pose)
+            rospy.sleep(message_rate)
+
         else:
             psm3.move_cp(ecm_T_psm3_desired_Pose)
             rospy.sleep(message_rate)
