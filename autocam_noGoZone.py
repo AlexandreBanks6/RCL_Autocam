@@ -293,6 +293,20 @@ def computeSecondaryPose(currentPSM3pose, psm3_T_cam, ecm_T_R, ecm_T_w, offset):
 
     return secondaryPose
 
+#loads the noGoZone calibrations. Returns a point array of the noGoZone in ***tip space***
+def load_noGoZoneCalibration():
+    psm1_tip_offset = 2.1/100
+    psm3_tip_offset = 2.8/100
+    psm1_T_tip = tip_transform(psm1_tip_offset)
+
+
+    psm1_calib_pose = pickle.load(open("psm1_pose_noGo.p", "rb"))
+    points = []
+    for p in range(len(psm1_calib_pose)):
+        ecm_T_psm1_tip = psm1_calib_pose[p]*psm1_T_tip
+        points.append(pm.toMatrix(ecm_T_psm1_tip)[0:3, 3])
+    return points
+
 ## When the state is distabled, then don't run teloperation
 def disabled():
     return None
@@ -354,11 +368,10 @@ if __name__ == '__main__':
 
     input("    Press Enter to start autonomous tracking...")
     
-    #gather points for noGoZone
-    psm1_calib_pose = pickle.load(open("psm1_pose_noGo.p", "rb"))
-    points = []
-    for p in range(len(psm1_calib_pose)):
-        points.append(pm.toMatrix(psm1_calib_pose[p])[0:3, 3])
+    #load points for noGoZone
+    points = load_noGoZoneCalibration()
+    #set constraints on noGoZone
+    floor_off = 0.045 #offset from floor of calibration
 
     ## For every iteration:
     while not rospy.is_shutdown():
@@ -389,10 +402,11 @@ if __name__ == '__main__':
 
         # prev_sgn = curr_sgn
 
-        inNoGo = point_in_cube(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4], verbose= False)
-        belowFloor = point_below_floor(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3], points[0], points[1], points[2], points[3], points[4],floor_offset=0.03, verbose= True)
+        inNoGo = point_in_cube(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4], verbose= True)
+        belowFloor = point_below_floor(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4],floor_offset=floor_off, verbose= False)
        
         if (inNoGo or belowFloor):
+            # print("in restricted Zone")
             ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
             psm3.move_cp(ecm_T_psm3_secondaryPose)
             print("Secondary Pose below")
