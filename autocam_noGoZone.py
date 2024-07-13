@@ -208,21 +208,23 @@ def point_in_cube(P, A, B, C, D, E, verbose):
     return True
 
 #Computes whether or not a point is below a floor defined by 5 points: A,B,C,D,E where A,B,C,D represent the base and E is an arbitrary point that defines the height of the cube
-def point_below_floor(P, A, B, C, D, E, verbose):
-    # Create vectors for the base
+#flooroffset is the distance in meters that the "floor" is offset from face A,B,C,D along the height vector
+def point_below_floor(P, A, B, C, D, E, floor_offset, verbose):
+        # Create vectors for the base
     AB = B - A
     BC = C - B
     AC = C - A
     AD = D - A
     CD = D - C
+    DA = A - D
     
-    # Normal vector of the base plane
-    n_base = np.cross(AB, AC)
+    # Normal vector of the base plane (points inwards to the cube)
+    n_base = np.cross(AC, AB) 
     n_base = n_base / np.linalg.norm(n_base)
     
     # Ensure the normal vector is pointing outwards (negative z direction)
-    if np.dot(n_base, A) > np.dot(n_base, A + np.array([0, 0, -1])):
-        n_base = -n_base
+    # if np.dot(n_base, A) > np.dot(n_base, A + np.array([0, 0, -1])):
+    #     n_base = -n_base
     
     # Height vector based on point E
     height_vector = np.dot((E - A), n_base) * n_base
@@ -238,14 +240,16 @@ def point_below_floor(P, A, B, C, D, E, verbose):
         n_base,                     # Bottom face (ABCD)
         -n_base,                    # Top face (A_top, B_top, C_top, D_top)
         np.cross(AB, height_vector), # Side face (AB, A_top, B_top, B)
-        np.cross(BC, height_vector), # Side face (AC, A_top, C_top, C)
-        np.cross(AD, height_vector), # Side face (AD, A_top, D_top, D)
-        np.cross(CD, height_vector)            # Opposite side face
+        np.cross(BC, height_vector), # Side face (B, C, B_top, C_top)
+        np.cross(CD, height_vector),            # Opposite side face
+        np.cross(DA, height_vector) # Side face (AD, A_top, D_top, D)
+
     ]
     
     # Base and top vertices
     vertices_base = [A, B, C, D]
     vertices_top = [A_top, B_top, C_top, D_top]
+    vertices_sides = [[A,B,A_top, B_top],[B,C,B_top,C_top],[C,D,C_top,D_top],[A,D,D_top,A_top]]
 
     width = np.linalg.norm(AB) #base dimension
     length = np.linalg.norm(AD) #base dimension
@@ -254,16 +258,16 @@ def point_below_floor(P, A, B, C, D, E, verbose):
     
     # Function to check if point P is on the correct side of a plane
     def point_on_correct_side(P, V, normal):
-        return np.dot(P - V, normal) <= 0
+        return np.dot(P - V, normal) >= 0
     
     # Check bottom face (ABCD)
-    camera_width = 0.0
     for vertex in vertices_base:
         #note that we add the height vector to the vertices because we want to account for the size of the camera
-        if not point_on_correct_side(P, vertex + camera_width/2*height_vector/np.linalg.norm(height_vector), -1 * normals[0]):
+        if not point_on_correct_side(P, vertex + floor_offset*height_vector/np.linalg.norm(height_vector),normals[0]):
             if verbose:
                 print("wrong side of base")
             return True
+    print("above base")
     
     return False
 
@@ -386,7 +390,7 @@ if __name__ == '__main__':
         # prev_sgn = curr_sgn
 
         inNoGo = point_in_cube(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4], verbose= False)
-        belowFloor = point_below_floor(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3], points[0], points[1], points[2], points[3], points[4], verbose= True)
+        belowFloor = point_below_floor(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3], points[0], points[1], points[2], points[3], points[4],floor_offset=0.03, verbose= True)
        
         if (inNoGo or belowFloor):
             ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
