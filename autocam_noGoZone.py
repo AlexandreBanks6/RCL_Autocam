@@ -371,7 +371,7 @@ if __name__ == '__main__':
     #load points for noGoZone
     points = load_noGoZoneCalibration()
     #set constraints on noGoZone
-    floor_off = 0.045 #offset from floor of calibration
+    floor_off = 0.035 #offset from floor of calibration
 
     ## For every iteration:
     while not rospy.is_shutdown():
@@ -406,6 +406,7 @@ if __name__ == '__main__':
         belowFloor = point_below_floor(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4],floor_offset=floor_off, verbose= False)
        
         if (inNoGo or belowFloor):
+            continue
             # print("in restricted Zone")
             ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
             psm3.move_cp(ecm_T_psm3_secondaryPose)
