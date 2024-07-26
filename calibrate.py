@@ -30,7 +30,7 @@ def calibrate(psm1, psm3):
     psm1_pose = []
     psm3_pose = []
 
-    n = 5
+    n = 3
     print(f"Now collecting {n} points...")
     for i in range(n):
 

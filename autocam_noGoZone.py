@@ -267,7 +267,8 @@ def point_below_floor(P, A, B, C, D, E, floor_offset, verbose):
             if verbose:
                 print("wrong side of base")
             return True
-    print("above base")
+    if verbose:
+        print("above base")
     
     return False
 
@@ -292,6 +293,26 @@ def computeSecondaryPose(currentPSM3pose, psm3_T_cam, ecm_T_R, ecm_T_w, offset):
     secondaryPose = PyKDL.Frame(ecm_R_psm3,currentPSM3pose.p)
 
     return secondaryPose
+
+def interpolatePose(desiredPose,currentPose, verbose):
+    interpolationRequired = False
+
+    #check distance between desired and current pose 
+    displacement = pm.toMatrix(desiredPose)[0:3, 3] - pm.toMatrix(currentPose)[0:3, 3]
+    distance = LA.norm(displacement)
+    direction = displacement/distance
+    intermediatePose = PyKDL.Frame()
+
+    if distance > 0.025 : 
+        interpolationRequired = True
+        intermediatePosition = pm.toMatrix(currentPose)[0:3, 3] + direction*distance*0.5
+        intermediateP =PyKDL.Vector(intermediatePosition[0], intermediatePosition[1], intermediatePosition[2])
+        intermediateRotation = desiredPose.M
+        intermediatePose = PyKDL.Frame(intermediateRotation, intermediateP)
+
+    if verbose:
+        print("Interpolation Flag = " + str(interpolationRequired))
+    return [interpolationRequired, intermediatePose]
 
 #loads the noGoZone calibrations. Returns a point array of the noGoZone in ***tip space***
 def load_noGoZoneCalibration():
@@ -402,10 +423,20 @@ if __name__ == '__main__':
 
         # prev_sgn = curr_sgn
 
-        inNoGo = point_in_cube(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4], verbose= True)
+        #INTERPOLATE POSE
+        interpolationRequired, interpolatedPose = interpolatePose(ecm_T_psm3_desired_Pose, psm3_pose, verbose= True)
+
+        if interpolationRequired:
+            ecm_T_psm3_desired_Pose = interpolatedPose
+
+        #NOGOZONE FLAGS
+
+        inNoGo = point_in_cube(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4], verbose= False)
         belowFloor = point_below_floor(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4],floor_offset=floor_off, verbose= False)
        
         if (inNoGo or belowFloor):
+            psm3.move_cp(ecm_T_psm3_desired_Pose)
+            rospy.sleep(message_rate)
             continue
             # print("in restricted Zone")
             ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
