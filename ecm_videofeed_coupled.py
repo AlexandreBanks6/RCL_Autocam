@@ -14,7 +14,7 @@ Steps to Setup ROS for Cameras:
 
     Don't close terminal!
 
-2. Connect blue ethernet to wired ethernet
+2. Connect white ethernet to wired ethernet
 3. In connection settings (top right of ubuntu):
     - Under 'PCI Ethernet Connected' or 'wired ethernet':
         set it to 'Wired Ethernet' 
@@ -60,7 +60,7 @@ LeftECM_Topic='ubc_dVRK_ECM/left/decklink/camera/image_raw/compressed'
 RightExternal_Topic='raspicam_node_right/image/compressed'
 LeftExternal_Topic='raspicam_node_left/image/compressed'
 SIZE_REDUCTION_PERCENTAGE_ECM=0.365 #Amount that external frame is reduced from original
-SIZE_REDUCTION_PERCENTAGE_EXTERNAL=0.4
+SIZE_REDUCTION_PERCENTAGE_EXTERNAL=0.38
 EXTERNAL_WIDTH=int(round(SIZE_REDUCTION_PERCENTAGE_EXTERNAL*1280))
 EXTERNAL_HEIGHT=int(round(SIZE_REDUCTION_PERCENTAGE_EXTERNAL*960))
 
@@ -69,6 +69,11 @@ ECM_HEIGHT=int(round(SIZE_REDUCTION_PERCENTAGE_ECM*986))
 
 VIEW_WINDOW_WIDTH=1024
 VIEW_WINDOW_HEIGHT=768
+
+EXTERNAL_SEPARATION=10 #Pixel offset from center line for left (neg offset) and right (pos offset)
+
+ZEROS_ARRAY=np.zeros((EXTERNAL_HEIGHT,EXTERNAL_WIDTH,3))
+MAX_ARRAY=255*np.ones((EXTERNAL_HEIGHT,EXTERNAL_WIDTH,3))
 
 
 class ECMVideoStreamer:
@@ -101,8 +106,9 @@ class ECMVideoStreamer:
     def showFramesCallback(self):
         
         if self.ecm_frame_left is not None:
-            superimposed_left=self.superimposeView(self.ecm_frame_left,self.external_frame_left)
-            superimposed_right=self.superimposeView(self.ecm_frame_right,self.external_frame_right)
+
+            superimposed_left=self.superimposeView(self.ecm_frame_left,self.external_frame_left,'left')
+            superimposed_right=self.superimposeView(self.ecm_frame_right,self.external_frame_right,'right')
             #Showing Frames
             cv2.imshow('left_eye',superimposed_left)
             cv2.imshow('right_eye',superimposed_right)
@@ -127,16 +133,23 @@ class ECMVideoStreamer:
         self.external_frame_right=self.bridge.compressed_imgmsg_to_cv2(data,'passthrough')
 
     #Superimpose the external view on bottom right corner of each ecm frame
-    def superimposeView(seld,ecm_frame,external_frame):
+    def superimposeView(self,ecm_frame,external_frame,left_right):
         #Input: ecm frame (ecm_frame); external camera frame: external_frame
         #Output: ecm frame with external camera frame on bottom right below ecm (superimposed_frame)
         if external_frame is not None:
             ecm_frame_new=cv2.resize(ecm_frame,(ECM_WIDTH,ECM_HEIGHT),interpolation=cv2.INTER_LINEAR)
             external_frame_new=cv2.resize(external_frame,(EXTERNAL_WIDTH,EXTERNAL_HEIGHT),interpolation=cv2.INTER_LINEAR)
+            external_frame_new=self.unsharp_mask(external_frame_new,kernel_size=(7,7),sigma=2.0,amount=3,threshold=0)
             
             superimposed_frame=np.zeros((VIEW_WINDOW_HEIGHT,VIEW_WINDOW_WIDTH,3),np.uint8)
             superimposed_frame[0:ECM_HEIGHT,int(round((VIEW_WINDOW_WIDTH-ECM_WIDTH)/2)):int(round((VIEW_WINDOW_WIDTH-ECM_WIDTH)/2))+ECM_WIDTH]=ecm_frame_new
-            superimposed_frame[-EXTERNAL_HEIGHT:,int(round((VIEW_WINDOW_WIDTH-EXTERNAL_WIDTH)/2)):int(round((VIEW_WINDOW_WIDTH-EXTERNAL_WIDTH)/2))+EXTERNAL_WIDTH]=external_frame_new
+
+            if left_right=='left': #We add a slight offset for the left/right to account for disparity
+                superimposed_frame[-EXTERNAL_HEIGHT:,int(round((VIEW_WINDOW_WIDTH-EXTERNAL_WIDTH)/2)-EXTERNAL_SEPARATION):int(round((VIEW_WINDOW_WIDTH-EXTERNAL_WIDTH)/2)-EXTERNAL_SEPARATION)+EXTERNAL_WIDTH]=external_frame_new
+            else: #right frame
+                superimposed_frame[-EXTERNAL_HEIGHT:,int(round((VIEW_WINDOW_WIDTH-EXTERNAL_WIDTH)/2)+EXTERNAL_SEPARATION):int(round((VIEW_WINDOW_WIDTH-EXTERNAL_WIDTH)/2)+EXTERNAL_SEPARATION)+EXTERNAL_WIDTH]=external_frame_new
+
+            
             #superimposed_frame[ECM_HEIGHT+1:,-EXTERNAL_WIDTH-((ECM_WIDTH-EXTERNAL_WIDTH)/2):]=external_frame
 
             # h_external=h*SIZE_REDUCTION_PERCENTAGE
@@ -152,9 +165,7 @@ class ECMVideoStreamer:
             superimposed_frame[0:ECM_HEIGHT,int(round((VIEW_WINDOW_WIDTH-ECM_WIDTH)/2)):int(round((VIEW_WINDOW_WIDTH-ECM_WIDTH)/2))+ECM_WIDTH]=ecm_frame_new
 
         return superimposed_frame
-
-
-        
+       
         # if external_frame is not None:
         #     h,w,_=external_frame.shape  #height/width of external camera frame
 
@@ -169,6 +180,20 @@ class ECMVideoStreamer:
         #     superimposed_frame=ecm_frame
 
         # return superimposed_frame   
+    
+    def unsharp_mask(self,image,kernel_size=(5,5),sigma=1.0,amount=1.0,threshold=0):
+        blurred=cv2.GaussianBlur(image,kernel_size,sigma)
+
+        sharpened=float(amount+1)*image-float(amount)*blurred
+        sharpened=np.maximum(sharpened,ZEROS_ARRAY)
+        sharpened=np.minimum(sharpened,MAX_ARRAY)
+        #sharpened=sharpened.round().astype(np.uint8)
+        if threshold>0:
+            low_contrast_mask=np.absolute(image-blurred)<threshold
+            np.copyto(sharpened,image,where=low_contrast_mask)
+        
+        return sharpened
+
 
 
 
