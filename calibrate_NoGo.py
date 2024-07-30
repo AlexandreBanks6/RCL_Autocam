@@ -22,15 +22,14 @@ def setting_arms_state(arm):
     arm.move_cp(arm_pose).wait()
 
 
-def calibrate(psm1, psm3):
+def collectNoGo(psm1):
 
 
     # psm1.move_cp(psm1_Identity_pose).wait()
     # psm3.move_cp(psm3_Identity_pose).wait()
     psm1_pose = []
-    psm3_pose = []
 
-    n = 3
+    n = 5
     print(f"Now collecting {n} points...")
     for i in range(n):
 
@@ -40,27 +39,18 @@ def calibrate(psm1, psm3):
 
     print("Finished Calibration for PSM1")
 
-    for i in range(n):
 
-        print(" Please move PSM3 to the fiducials.")
-        input("    Press Enter to continue...")
-        psm3_pose.append(psm3.measured_cp())
-
-    pickle.dump(psm1_pose, open("psm1_pose.p", "wb")) 
-    pickle.dump(psm3_pose, open("psm3_pose.p", "wb")) 
-
+    pickle.dump(psm1_pose, open("psm1_pose_noGo.p", "wb")) 
 
 if __name__ == '__main__':
 
-    print("Initializing arms...")
+    print("Initializing arm...")
 
     psm1 = dvrk.psm("PSM1")
-    psm3 = dvrk.psm("PSM3")
 
     setting_arms_state(psm1)
-    setting_arms_state(psm3)
 
-    calibrate(psm1, psm3)
+    collectNoGo(psm1)
 
 
 

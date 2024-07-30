@@ -167,8 +167,10 @@ class teleop:
     def follow_mode(self):
 
         hrsv_T_controller_ini = self.controller_arm.measured_cp()
+        hrsv_T_controller_origin = self.controller_arm.measured_cp()
+
         ecm_T_child_ini = self.child_arm.setpoint_cp() ## w.r.t ECM
-        ecm_T_cam_ini = self.parent_arm.setpoint_cp()
+        ecm_T_cam_ini = self.parent_arm.setpoint_cp()*self.parent_T_cam
 
         clutch_pressed_prev = False
 
@@ -176,7 +178,20 @@ class teleop:
 
             # Check if clutch is pressed or not
 
+            #check rotation between current and origin
+
             hrsv_T_controller_curr = self.controller_arm.setpoint_cp()
+
+            rotationFrame = hrsv_T_controller_origin.Inverse()*hrsv_T_controller_curr
+
+            rotationEul = rotationFrame.M.GetEulerZYX()
+            print(rotationEul)
+
+            # if not any( x > 0.087 for x in rotationEul):
+            #     print("smaller")
+            #     hrsv_T_controller_curr.M=hrsv_T_controller_origin.M
+
+
 
             ecm_T_parent_curr = self.parent_arm.setpoint_cp() ## w.r.t ECM
                     
@@ -187,7 +202,9 @@ class teleop:
             # if self.sensors.flip == False:
             # ecm_T_child_next.M = ecm_T_cam_curr.M * hrsv_T_controller_curr.M * self.align_offset
 
-            ecm_T_child_next.M = ecm_T_cam_curr.M * hrsv_T_controller_curr.M * self.align_offset * (ecm_T_cam_curr.M.Inverse() * ecm_T_cam_ini.M).Inverse()
+            #ecm_T_child_next.M = ecm_T_cam_curr.M * hrsv_T_controller_curr.M * self.align_offset * (ecm_T_cam_curr.M.Inverse() * ecm_T_cam_ini.M).Inverse() # Initial from Sayem
+            ecm_T_child_next.M = ecm_T_cam_curr.M *hrsv_T_controller_curr.M * self.align_offset
+
             # else:
             #     ecm_T_child_next.M = hrsv_T_controller_curr.M * self.align_offset
             
@@ -260,7 +277,7 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--operator', type=bool, default=True,
                         help = 'Whether headsensor would be considered for teleoperation.')
 
-    parser.add_argument('-s', '--scale', type=float, default=0.5,
+    parser.add_argument('-s', '--scale', type=float, default=0.2,
                         help = 'Scale factor for teleoperation.')
     
     parser.add_argument('-d', '--offset', type=float, default=0.045,
