@@ -202,6 +202,9 @@ class teleop:
             distance = LA.norm(pm.toMatrix(ecm_T_cam_curr)[0:3, 3] -pm.toMatrix(ecm_T_child_stationary)[0:3, 3])
             if distance > 0.01:
                 ecm_T_child_stationary = ecm_T_cam_curr
+
+
+                
             ## TIME BASED METHOD
             # if self.teleopFrameCounter >= self.teleopFrameDelay:
             #     ecm_T_parent_curr = self.parent_arm.setpoint_cp() ## w.r.t ECM
@@ -284,7 +287,7 @@ if __name__ == '__main__':
                         choices=['ECM', 'MTML', 'MTMR', 'PSM1', 'PSM2', 'PSM3'],
                         help = 'child arm name corresponding to ROS topics without namespace.')
 
-    parser.add_argument('-m', '--controller', type=str, default='MTML',
+    parser.add_argument('-m', '--controller', type=str, default='MTMR',
                         choices=['ECM', 'MTML', 'MTMR', 'PSM1', 'PSM2', 'PSM3'],
                         help = 'controller arm name corresponding to ROS topics without namespace.')
     
