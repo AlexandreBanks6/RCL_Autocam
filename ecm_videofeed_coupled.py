@@ -15,7 +15,6 @@ Steps to Setup ROS for Cameras:
     Don't close terminal!
 
 2. Connect white ethernet to wired ethernet
-3. In connection settings (top right of ubuntu):
     - Under 'PCI Ethernet Connected' or 'wired ethernet':
         set it to 'Wired Ethernet' 
     - Under 'Ethernet Connected' or 'USB Ethernet' set it to 'USB Ethernet'
@@ -53,6 +52,7 @@ from sensor_msgs.msg import CompressedImage
 import cv2
 from cv_bridge import CvBridge
 import numpy as np
+import Tkinter as tk
 
 #ROS Topics
 RightECM_Topic='ubc_dVRK_ECM/right/decklink/camera/image_raw/compressed'
@@ -60,7 +60,7 @@ LeftECM_Topic='ubc_dVRK_ECM/left/decklink/camera/image_raw/compressed'
 RightExternal_Topic='raspicam_node_right/image/compressed'
 LeftExternal_Topic='raspicam_node_left/image/compressed'
 SIZE_REDUCTION_PERCENTAGE_ECM=0.365 #Amount that external frame is reduced from original
-SIZE_REDUCTION_PERCENTAGE_EXTERNAL=0.38
+SIZE_REDUCTION_PERCENTAGE_EXTERNAL=0.4
 EXTERNAL_WIDTH=int(round(SIZE_REDUCTION_PERCENTAGE_EXTERNAL*1280))
 EXTERNAL_HEIGHT=int(round(SIZE_REDUCTION_PERCENTAGE_EXTERNAL*960))
 
@@ -74,7 +74,8 @@ EXTERNAL_SEPARATION=10 #Pixel offset from center line for left (neg offset) and 
 
 ZEROS_ARRAY=np.zeros((EXTERNAL_HEIGHT,EXTERNAL_WIDTH,3))
 MAX_ARRAY=255*np.ones((EXTERNAL_HEIGHT,EXTERNAL_WIDTH,3))
-
+def nothing(x):
+    pass
 
 class ECMVideoStreamer:
     def __init__(self):
@@ -99,12 +100,63 @@ class ECMVideoStreamer:
         self.ecm_frame_right = None
 
 
-        rospy.spin()
+        #Variabels to change with GUI
+        self.sharpness_kernel_value=7
+        self.sharpness_sigma_value=1
+        self.external_separation_val=EXTERNAL_SEPARATION
+
+        #Create slider window
+        #self.dummy_img=np.zeros((200,600,3),np.uint8)
+        #cv2.namedWindow('AutoCam_Video_GUI')
+        #cv2.createTrackbar('Sharpness Kernel','AutoCam_Video_GUI',0,255,nothing)
+        self.gui_window=tk.Tk()
+        self.gui_window.title("AutoCam Video GUI")
+        self.gui_window.minsize(300,100)
+        #self.gui_window.gri
+        #self.gui_window.rowconfigure([0,1,2],weight=1)
+        #self.gui_window.columnconfigure([0,1],weight=1)
+
+        #Kernel Value for Sharpening
+        self.kernel_label=tk.Label(self.gui_window,text='Sharpness Kernel: ').grid(row=0,column=0,sticky="nsew")
+        self.slider_kernel=tk.Scale(self.gui_window,from_=0,to=21,orient="horizontal")
+        self.slider_kernel.set(self.sharpness_kernel_value)
+        self.slider_kernel.bind("<ButtonRelease-1>",self.kernelTrackbarCallback)
+        self.slider_kernel.grid(row=0,column=1,sticky="nsew")
+
+        #Sigma Value for Sharpening
+        self.sigma_label=tk.Label(self.gui_window,text='Sharpness Sigma: ').grid(row=1,column=0,sticky="nsew")
+        self.slider_sigma=tk.Scale(self.gui_window,from_=0,to=5,orient="horizontal")
+        self.slider_sigma.set(self.sharpness_sigma_value)
+        self.slider_sigma.bind("<ButtonRelease-1>",self.sigmaTrackbarCallback)
+        self.slider_sigma.grid(row=1,column=1,sticky="nsew")
+
+        #Kernel Value for Sharpening
+        self.separation_label=tk.Label(self.gui_window,text='External Cam. Separation: ').grid(row=2,column=0,sticky="nsew")
+        self.slider_separation=tk.Scale(self.gui_window,from_=-30,to=30,orient="horizontal")
+        self.slider_separation.set(self.external_separation_val)
+        self.slider_separation.bind("<ButtonRelease-1>",self.separationTrackbarCallback)
+        self.slider_separation.grid(row=2,column=1,sticky="nsew")
+
+
+        #main loop
+        self.gui_window.mainloop()
+        #rospy.spin()
+    
+    def kernelTrackbarCallback(self,event):
+        self.sharpness_kernel_value=self.slider_kernel.get()
+        if (self.sharpness_kernel_value//2*2)==self.sharpness_kernel_value: #Fixes Kernel to an odd value
+            self.sharpness_kernel_value=self.sharpness_kernel_value+1
         
+    def sigmaTrackbarCallback(self,event):
+        self.sharpness_sigma_value=self.slider_sigma.get()
+
+    def separationTrackbarCallback(self,event):
+        self.external_separation_val=self.slider_separation.get()
 
 
     def showFramesCallback(self):
-        
+        #cv2.imshow('AutoCam_Video_GUI',self.dummy_img)
+        #print(self.sharpness_kernel_value)
         if self.ecm_frame_left is not None:
 
             superimposed_left=self.superimposeView(self.ecm_frame_left,self.external_frame_left,'left')
@@ -139,15 +191,16 @@ class ECMVideoStreamer:
         if external_frame is not None:
             ecm_frame_new=cv2.resize(ecm_frame,(ECM_WIDTH,ECM_HEIGHT),interpolation=cv2.INTER_LINEAR)
             external_frame_new=cv2.resize(external_frame,(EXTERNAL_WIDTH,EXTERNAL_HEIGHT),interpolation=cv2.INTER_LINEAR)
-            external_frame_new=self.unsharp_mask(external_frame_new,kernel_size=(7,7),sigma=2.0,amount=3,threshold=0)
+            external_frame_new=self.unsharp_mask(external_frame_new,kernel_size=(self.sharpness_kernel_value,self.sharpness_kernel_value),\
+                                                 sigma=self.sharpness_sigma_value,amount=3,threshold=0)
             
             superimposed_frame=np.zeros((VIEW_WINDOW_HEIGHT,VIEW_WINDOW_WIDTH,3),np.uint8)
             superimposed_frame[0:ECM_HEIGHT,int(round((VIEW_WINDOW_WIDTH-ECM_WIDTH)/2)):int(round((VIEW_WINDOW_WIDTH-ECM_WIDTH)/2))+ECM_WIDTH]=ecm_frame_new
 
             if left_right=='left': #We add a slight offset for the left/right to account for disparity
-                superimposed_frame[-EXTERNAL_HEIGHT:,int(round((VIEW_WINDOW_WIDTH-EXTERNAL_WIDTH)/2)-EXTERNAL_SEPARATION):int(round((VIEW_WINDOW_WIDTH-EXTERNAL_WIDTH)/2)-EXTERNAL_SEPARATION)+EXTERNAL_WIDTH]=external_frame_new
+                superimposed_frame[-EXTERNAL_HEIGHT:,int(round((VIEW_WINDOW_WIDTH-EXTERNAL_WIDTH)/2)-self.external_separation_val):int(round((VIEW_WINDOW_WIDTH-EXTERNAL_WIDTH)/2)-self.external_separation_val)+EXTERNAL_WIDTH]=external_frame_new
             else: #right frame
-                superimposed_frame[-EXTERNAL_HEIGHT:,int(round((VIEW_WINDOW_WIDTH-EXTERNAL_WIDTH)/2)+EXTERNAL_SEPARATION):int(round((VIEW_WINDOW_WIDTH-EXTERNAL_WIDTH)/2)+EXTERNAL_SEPARATION)+EXTERNAL_WIDTH]=external_frame_new
+                superimposed_frame[-EXTERNAL_HEIGHT:,int(round((VIEW_WINDOW_WIDTH-EXTERNAL_WIDTH)/2)+self.external_separation_val):int(round((VIEW_WINDOW_WIDTH-EXTERNAL_WIDTH)/2)+self.external_separation_val)+EXTERNAL_WIDTH]=external_frame_new
 
             
             #superimposed_frame[ECM_HEIGHT+1:,-EXTERNAL_WIDTH-((ECM_WIDTH-EXTERNAL_WIDTH)/2):]=external_frame
