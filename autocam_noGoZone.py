@@ -303,7 +303,7 @@ def interpolatePose(desiredPose,currentPose, verbose):
     direction = displacement/distance
     intermediatePose = PyKDL.Frame()
 
-    if distance > 0.025 : 
+    if distance > 0.015 : 
         interpolationRequired = True
         intermediatePosition = pm.toMatrix(currentPose)[0:3, 3] + direction*distance*0.5
         intermediateP =PyKDL.Vector(intermediatePosition[0], intermediatePosition[1], intermediatePosition[2])
@@ -360,7 +360,7 @@ if __name__ == '__main__':
 
     ring_offset = 0.033 ## 1.5 cm
     cam_offset = 0.045 ## 4 cm
-    df = 0.12 ## in cms
+    df = 0.10 ## in cms
     ## HARD CODED OFFSET FOR GIVEN JOINT CONFIGURATION
     
     offset = load_and_set_calibration()
@@ -384,15 +384,37 @@ if __name__ == '__main__':
     ecm_T_psm3_desired_Pose, prev_sgn = orient_camera(psm3_T_cam, ecm_T_R, ecm_T_w, z_i, df, offset)
     
     print("Parking PSM3 to starting position...")
-    fixed_posed = ecm_T_psm3_desired_Pose.p
-    psm3.move_cp(ecm_T_psm3_desired_Pose).wait()
+
+      #load points for noGoZone
+    points = load_noGoZoneCalibration()
+    #set constraints on noGoZone
+    floor_off = 0.07 #offset from floor of calibration
+
+    inNoGo = point_in_cube(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4], verbose= False)
+    belowFloor = point_below_floor(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4],floor_offset=floor_off, verbose= False)
+       
+    if (inNoGo or belowFloor):
+        # psm3.move_cp(ecm_T_psm3_desired_Pose)
+        rospy.sleep(message_rate)
+    
+        # print("in restricted Zone")
+        ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+        psm3.move_cp(ecm_T_psm3_secondaryPose)
+        print("Secondary Pose below")
+        print(ecm_T_psm3_secondaryPose)
+        print("Primary Pose Below")
+        print(psm3_pose)
+        rospy.sleep(message_rate)
+
+    else:
+        psm3.move_cp(ecm_T_psm3_desired_Pose)
+        rospy.sleep(message_rate)
+
+
 
     input("    Press Enter to start autonomous tracking...")
     
-    #load points for noGoZone
-    points = load_noGoZoneCalibration()
-    #set constraints on noGoZone
-    floor_off = 0.035 #offset from floor of calibration
+  
 
     ## For every iteration:
     while not rospy.is_shutdown():
@@ -435,9 +457,9 @@ if __name__ == '__main__':
         belowFloor = point_below_floor(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4],floor_offset=floor_off, verbose= False)
        
         if (inNoGo or belowFloor):
-            psm3.move_cp(ecm_T_psm3_desired_Pose)
+            # psm3.move_cp(ecm_T_psm3_desired_Pose)
             rospy.sleep(message_rate)
-            continue
+        
             # print("in restricted Zone")
             ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
             psm3.move_cp(ecm_T_psm3_secondaryPose)

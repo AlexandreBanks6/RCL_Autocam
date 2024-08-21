@@ -7,6 +7,8 @@ from scipy.spatial.transform import Rotation as R
 from sensors import footpedal
 import sys
 import argparse
+from numpy import linalg as LA
+
 ## Important notes:
 ## For MTM motion:
     # Position: 3D position of MTML (w.r.t to surgeon console) is used to compute the relative translation
@@ -45,7 +47,8 @@ def axis_angle_offset(alignment_offset):
 ## When the state is distabled, then don't run teloperation
 
 class teleop:
-
+    teleopFrameDelay = 5
+    teleopFrameCounter = teleopFrameDelay
     # configuration of the arms
     def configure(self, 
                   parent_arm, 
@@ -77,6 +80,7 @@ class teleop:
         self.cam_offset = cam_offset
         self.scale_factor = scale_factor
         self.start_teleop = False
+
 
     def setting_arm_state(self, arm):
 
@@ -174,6 +178,7 @@ class teleop:
 
         clutch_pressed_prev = False
 
+        ecm_T_child_stationary = ecm_T_child_ini
         while self.start_teleop == True:
 
             # Check if clutch is pressed or not
@@ -191,11 +196,23 @@ class teleop:
             #     print("smaller")
             #     hrsv_T_controller_curr.M=hrsv_T_controller_origin.M
 
-
-
+            ## DISTANCE BASED METHOD
             ecm_T_parent_curr = self.parent_arm.setpoint_cp() ## w.r.t ECM
-                    
             ecm_T_cam_curr = ecm_T_parent_curr * self.parent_T_cam
+            distance = LA.norm(pm.toMatrix(ecm_T_cam_curr)[0:3, 3] -pm.toMatrix(ecm_T_child_stationary)[0:3, 3])
+            if distance > 0.01:
+                ecm_T_child_stationary = ecm_T_cam_curr
+
+
+                
+            ## TIME BASED METHOD
+            # if self.teleopFrameCounter >= self.teleopFrameDelay:
+            #     ecm_T_parent_curr = self.parent_arm.setpoint_cp() ## w.r.t ECM
+            #     ecm_T_cam_curr = ecm_T_parent_curr * self.parent_T_cam
+            #     self.teleopFrameCounter = 0
+            
+            # else:
+            #     self.teleopFrameCounter+=1 
 
             ecm_T_child_next = ecm_T_child_ini
 
@@ -203,7 +220,10 @@ class teleop:
             # ecm_T_child_next.M = ecm_T_cam_curr.M * hrsv_T_controller_curr.M * self.align_offset
 
             #ecm_T_child_next.M = ecm_T_cam_curr.M * hrsv_T_controller_curr.M * self.align_offset * (ecm_T_cam_curr.M.Inverse() * ecm_T_cam_ini.M).Inverse() # Initial from Sayem
-            ecm_T_child_next.M = ecm_T_cam_curr.M *hrsv_T_controller_curr.M * self.align_offset
+            
+            
+            #check if n amount of iterations have occured since last set 
+            ecm_T_child_next.M = ecm_T_child_stationary.M *hrsv_T_controller_curr.M * self.align_offset
 
             # else:
             #     ecm_T_child_next.M = hrsv_T_controller_curr.M * self.align_offset
@@ -221,7 +241,7 @@ class teleop:
                 
             else:
 
-                ecm_T_child_next.p = ecm_T_child_next.p + ecm_T_cam_curr.M * controller_translation
+                ecm_T_child_next.p = ecm_T_child_next.p + ecm_T_child_stationary.M * controller_translation
 
                 if clutch_pressed_prev == True:
                     self.controller_arm.unlock_orientation()
@@ -267,7 +287,7 @@ if __name__ == '__main__':
                         choices=['ECM', 'MTML', 'MTMR', 'PSM1', 'PSM2', 'PSM3'],
                         help = 'child arm name corresponding to ROS topics without namespace.')
 
-    parser.add_argument('-m', '--controller', type=str, default='MTML',
+    parser.add_argument('-m', '--controller', type=str, default='MTMR',
                         choices=['ECM', 'MTML', 'MTMR', 'PSM1', 'PSM2', 'PSM3'],
                         help = 'controller arm name corresponding to ROS topics without namespace.')
     
