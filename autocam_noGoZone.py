@@ -8,6 +8,7 @@ from scipy.spatial.transform import Rotation as R
 from numpy import linalg as LA
 import pickle
 from std_msgs.msg import Bool
+import filteringUtils
 
 if sys.version_info.major < 3:
     input = raw_input
@@ -360,7 +361,7 @@ if __name__ == '__main__':
 
     ring_offset = 0.033 ## 1.5 cm
     cam_offset = 0.045 ## 4 cm
-    df = 0.10 ## in cms
+    df = 0.12 ## in cms
     ## HARD CODED OFFSET FOR GIVEN JOINT CONFIGURATION
     
     offset = load_and_set_calibration()
@@ -414,16 +415,39 @@ if __name__ == '__main__':
 
     input("    Press Enter to start autonomous tracking...")
     
-  
-
+    #buffer for filtering position40
+    positionFilter = filteringUtils.CircularBuffer(size=40,num_elements=3)
+    rotationFilter = filteringUtils.CircularBuffer(size=40,num_elements=4)
     ## For every iteration:
     while not rospy.is_shutdown():
 
         # Query the poses for psm1, psm3 and ecm
-        psm1_pose = psm1.setpoint_cp()
+        psm1_pose_raw = psm1.setpoint_cp()
         psm3_pose = psm3.setpoint_cp()
 
+        #filter the PSM1 pose 
+        psm1_R=psm1_pose_raw.M
+        psm1_quaternion=psm1_R.GetQuaternion()
+        print("quaternionBeforeMean = ", psm1_quaternion)
+        quat = np.array([psm1_quaternion[0],psm1_quaternion[1], psm1_quaternion[2], psm1_quaternion[3]])
+        quat = rotationFilter.negateQuaternion(quat)
+
+        rotationFilter.append(quat)
+        #positionFilter.append(pm.toMatrix(psm1_pose)[0:3,3])
+        rotationMean = rotationFilter.get_mean()
+        print("quaternionAfterMean = ", rotationMean)
+        rotationMean = rotationFilter.negateQuaternion(rotationMean)
+
+        rotationMean = PyKDL.Rotation.Quaternion(rotationMean[0],rotationMean[1],rotationMean[2],rotationMean[3])
+        print("quaternionAfterConversion = ", rotationMean)
+        psm1_pose.M = rotationMean
+        psm1_pose.p = psm1_pose_raw.p
+        print("psm1_posefinal = ", psm1_pose.M)
+
+
+        #compute optimal desired pose
         ecm_T_R = psm1_pose * psm1_T_R
+        print("ecmTR = ", ecm_T_R.M)
 
         z_i = pm.toMatrix(psm3_pose)[0:3, 2]
 
