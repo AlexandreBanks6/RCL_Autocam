@@ -287,7 +287,7 @@ if __name__ == '__main__':
                         choices=['ECM', 'MTML', 'MTMR', 'PSM1', 'PSM2', 'PSM3'],
                         help = 'child arm name corresponding to ROS topics without namespace.')
 
-    parser.add_argument('-m', '--controller', type=str, default='MTMR',
+    parser.add_argument('-m', '--controller', type=str, default='MTML',
                         choices=['ECM', 'MTML', 'MTMR', 'PSM1', 'PSM2', 'PSM3'],
                         help = 'controller arm name corresponding to ROS topics without namespace.')
     
@@ -297,7 +297,7 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--operator', type=bool, default=True,
                         help = 'Whether headsensor would be considered for teleoperation.')
 
-    parser.add_argument('-s', '--scale', type=float, default=0.2,
+    parser.add_argument('-s', '--scale', type=float, default=0.4,
                         help = 'Scale factor for teleoperation.')
     
     parser.add_argument('-d', '--offset', type=float, default=0.045,
