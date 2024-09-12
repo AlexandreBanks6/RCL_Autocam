@@ -349,8 +349,10 @@ if __name__ == '__main__':
     
     rospy.init_node('dvrk_teleop', anonymous=True)
 
-    psm1 = dvrk.psm("PSM1")
-    psm3 = dvrk.psm("PSM3")
+
+    #by swapping the arm assignment, you can change which are holds the autocamera
+    psm1 = dvrk.psm("PSM3")
+    psm3 = dvrk.psm("PSM1")
     ecm = dvrk.ecm("ECM")
 
     setting_arms_state(psm1)

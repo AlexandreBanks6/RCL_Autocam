@@ -34,15 +34,15 @@ def calibrate(psm1, psm3):
     print(f"Now collecting {n} points...")
     for i in range(n):
 
-        print(" Please move PSM1 to touch each fiducial.")
+        print(" Please move PSM3 to touch each fiducial.")
         input("    Press Enter to continue...")
         psm1_pose.append(psm1.measured_cp())
 
-    print("Finished Calibration for PSM1")
+    print("Finished Calibration for PSM3")
 
     for i in range(n):
 
-        print(" Please move PSM3 to the fiducials.")
+        print(" Please move PSM1 to the fiducials.")
         input("    Press Enter to continue...")
         psm3_pose.append(psm3.measured_cp())
 
@@ -54,8 +54,8 @@ if __name__ == '__main__':
 
     print("Initializing arms...")
 
-    psm1 = dvrk.psm("PSM1")
-    psm3 = dvrk.psm("PSM3")
+    psm1 = dvrk.psm("PSM3")
+    psm3 = dvrk.psm("PSM1")
 
     setting_arms_state(psm1)
     setting_arms_state(psm3)

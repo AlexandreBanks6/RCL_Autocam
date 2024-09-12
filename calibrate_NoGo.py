@@ -33,11 +33,11 @@ def collectNoGo(psm1):
     print(f"Now collecting {n} points...")
     for i in range(n):
 
-        print(" Please move PSM1 to touch each fiducial.")
+        print(" Please move PSM3 to touch each fiducial.")
         input("    Press Enter to continue...")
         psm1_pose.append(psm1.measured_cp())
 
-    print("Finished Calibration for PSM1")
+    print("Finished Calibration for PSM3")
 
 
     pickle.dump(psm1_pose, open("psm1_pose_noGo.p", "wb")) 
@@ -46,7 +46,7 @@ if __name__ == '__main__':
 
     print("Initializing arm...")
 
-    psm1 = dvrk.psm("PSM1")
+    psm1 = dvrk.psm("PSM3")
 
     setting_arms_state(psm1)
 

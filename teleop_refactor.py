@@ -279,15 +279,15 @@ if __name__ == '__main__':
 
     # parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('-p', '--parent', type=str, default='PSM3',
+    parser.add_argument('-p', '--parent', type=str, default='PSM1',
                         choices=['ECM', 'MTML', 'MTMR', 'PSM1', 'PSM2', 'PSM3'],
                         help = 'parent arm name corresponding to ROS topics without namespace.')
 
-    parser.add_argument('-c', '--child', type=str, default='PSM1',
+    parser.add_argument('-c', '--child', type=str, default='PSM3',
                         choices=['ECM', 'MTML', 'MTMR', 'PSM1', 'PSM2', 'PSM3'],
                         help = 'child arm name corresponding to ROS topics without namespace.')
 
-    parser.add_argument('-m', '--controller', type=str, default='MTML',
+    parser.add_argument('-m', '--controller', type=str, default='MTMR',
                         choices=['ECM', 'MTML', 'MTMR', 'PSM1', 'PSM2', 'PSM3'],
                         help = 'controller arm name corresponding to ROS topics without namespace.')
     
