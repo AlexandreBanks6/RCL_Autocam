@@ -391,7 +391,7 @@ if __name__ == '__main__':
       #load points for noGoZone
     points = load_noGoZoneCalibration()
     #set constraints on noGoZone
-    floor_off = 0.07 #offset from floor of calibration
+    floor_off = 0.05 #offset from floor of calibration
 
     inNoGo = point_in_cube(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4], verbose= False)
     belowFloor = point_below_floor(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4],floor_offset=floor_off, verbose= False)

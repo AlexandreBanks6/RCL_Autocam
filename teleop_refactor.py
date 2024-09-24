@@ -249,6 +249,10 @@ class teleop:
                     
                 self.child_arm.move_cp(ecm_T_child_next)
 
+
+                self.child_arm.jaw.move_jp(self.controller_arm.gripper.measured_js()[0])
+
+
                 ecm_T_child_ini = ecm_T_child_next
 
             rospy.sleep(self.expected_interval)
