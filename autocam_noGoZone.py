@@ -273,7 +273,7 @@ def point_below_floor(P, A, B, C, D, E, floor_offset, verbose):
     
     return False
 
-#PURPOSE: Given the current PSM3 and PSM1 pose, compute the pose of PSM3 that keeps PSM3 position constant but alters its orientation such that it views the centroid of PSM1
+#PURPOSE: Given the current PSM3 and PSM1 pose, compute the pose of PSM3 that keeps PSM3 position constant but alters its orientation such that it views the centroid of the ring held by PSM1
 def computeSecondaryPose(currentPSM3pose, psm3_T_cam, ecm_T_R, ecm_T_w, offset):
     #keep position the same but change the rotation
 
@@ -294,6 +294,64 @@ def computeSecondaryPose(currentPSM3pose, psm3_T_cam, ecm_T_R, ecm_T_w, offset):
     secondaryPose = PyKDL.Frame(ecm_R_psm3,currentPSM3pose.p)
 
     return secondaryPose
+
+#Computes the pose that is closest to the desired point but lies on the top boundary of the noGoZone. A_p1 etc are the nogo zone defined in PSM1 coordinate system
+def computeBoundaryPose(desiredPSM3pose, A_p1, B_p1, C_p1, D_p1, E_p1, psm3_T_cam, ecm_T_R, ecm_T_w, offset_vec):
+        offset = np.array([offset_vec.x(),offset_vec.y(),offset_vec.z()])
+        
+        
+        #Convert nogozone into psm3 coordinate system
+        A = A_p1 - offset
+        B = B_p1 - offset
+        C = C_p1 - offset
+        D = D_p1 - offset
+        E = E_p1 - offset
+
+
+        AB = B - A
+        BC = C - B
+        AC = C - A
+        AD = D - A
+        CD = D - C
+        DA = A - D
+        
+        # Normal vector of the base plane (points inwards to the cube)
+        n_base = np.cross(AC, AB) 
+        n_base = n_base / np.linalg.norm(n_base)
+        
+        # Height vector based on point E
+        height_vector = np.dot((E - A), n_base) * n_base
+        
+        # Calculate the top face vertices
+        A_top = A + height_vector
+        B_top = B + height_vector
+        C_top = C + height_vector
+        D_top = D + height_vector
+        
+        # Define the normal vectors for the six faces of the cube (pointing inwards)
+        normals = [
+            n_base,                     # Bottom face (ABCD)
+            -n_base,                    # Top face (A_top, B_top, C_top, D_top)
+            np.cross(AB, height_vector), # Side face (AB, A_top, B_top, B)
+            np.cross(BC, height_vector), # Side face (B, C, B_top, C_top)
+            np.cross(CD, height_vector),            # Opposite side face
+            np.cross(DA, height_vector) # Side face (AD, A_top, D_top, D)
+        ]
+
+        #compute vector for offsetting point to outside of the noGoZone
+        desiredPosition = pm.toMatrix(desiredPSM3pose)[0:3,3]
+        #vector to the plane
+        vec2plane = -1 * np.dot(desiredPosition - A_top, normals[1]) * normals[1] - normals[1]*0.04 
+
+        compensatedPosition = desiredPosition + vec2plane
+        desiredPSM3pose.p = PyKDL.Vector(compensatedPosition[0], compensatedPosition[1], compensatedPosition[2])
+
+        secondaryPose = computeSecondaryPose(desiredPSM3pose, psm3_T_cam, ecm_T_R, ecm_T_w, offset_vec)
+        return secondaryPose
+
+
+
+
 
 def interpolatePose(desiredPose,currentPose, verbose):
     interpolationRequired = False
@@ -363,7 +421,7 @@ if __name__ == '__main__':
     cam_offset = 0.045 ## 4 cm
     df = 0.12 ## in cms
     ## HARD CODED OFFSET FOR GIVEN JOINT CONFIGURATION
-    
+    ## To get to PSM1 coordinate system, take PSM3 from measure_cp and add offset
     offset = load_and_set_calibration()
 
     # Find respective transforms from psm1 to ring and from psm3 to cam
@@ -399,7 +457,9 @@ if __name__ == '__main__':
         rospy.sleep(message_rate)
     
         # print("in restricted Zone")
-        ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+        ecm_T_psm3_secondaryPose = computeBoundaryPose(ecm_T_psm3_desired_Pose,points[0], points[1], points[2], points[3], points[4],psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+
+        #ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
         psm3.move_cp(ecm_T_psm3_secondaryPose)
         print("Secondary Pose below")
         print(ecm_T_psm3_secondaryPose)
@@ -419,7 +479,7 @@ if __name__ == '__main__':
     # positionFilter = filteringUtils.CircularBuffer(size=40,num_elements=3)
     # rotationFilter = filteringUtils.CircularBuffer(size=60,num_elements=4)
 
-    cameraPositionFilter = filteringUtils.CircularBuffer(size=80,num_elements=3)
+    cameraPositionFilter = filteringUtils.CircularBuffer(size=110,num_elements=3)
     cameraOrientationFiler=filteringUtils.CircularBuffer(size=125,num_elements=4)
 
     ## For every iteration:
@@ -489,7 +549,11 @@ if __name__ == '__main__':
             # psm3.move_cp(ecm_T_psm3_desired_Pose)
             rospy.sleep(message_rate)
             # print("in restricted Zone")
-            ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+
+            ecm_T_psm3_secondaryPose = computeBoundaryPose(ecm_T_psm3_desired_Pose,points[0], points[1], points[2], points[3], points[4],psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+
+
+            # ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
             
             #FILTER DESIRED PSM3 (AUTOCAM) POSITION
             pos = ecm_T_psm3_secondaryPose.p
