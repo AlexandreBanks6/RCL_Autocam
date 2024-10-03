@@ -287,7 +287,7 @@ if __name__ == '__main__':
                         choices=['ECM', 'MTML', 'MTMR', 'PSM1', 'PSM2', 'PSM3'],
                         help = 'child arm name corresponding to ROS topics without namespace.')
 
-    parser.add_argument('-m', '--controller', type=str, default='MTML',
+    parser.add_argument('-m', '--controller', type=str, default='MTMR',
                         choices=['ECM', 'MTML', 'MTMR', 'PSM1', 'PSM2', 'PSM3'],
                         help = 'controller arm name corresponding to ROS topics without namespace.')
     
