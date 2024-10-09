@@ -273,6 +273,17 @@ def point_below_floor(P, A, B, C, D, E, floor_offset, verbose):
     
     return False
 
+#PURPOSE: For constraining the camera to stay on one side of the robot only. Useful in the absence of inverse kinematics
+def orientationConstraint(desiredPSM3pose,ecm_T_w, verbose=False):
+    flag = False
+    x_wrld = pm.toMatrix(ecm_T_w)[0:3,0]
+    y_cam = pm.toMatrix(desiredPSM3pose)[0:3, 1]
+    if np.dot(x_wrld,y_cam) > 0:
+        flag = True
+    if verbose:
+        print("Orientation Constraint= " + str(flag))
+    return flag
+
 #PURPOSE: Given the current PSM3 and PSM1 pose, compute the pose of PSM3 that keeps PSM3 position constant but alters its orientation such that it views the centroid of the ring held by PSM1
 def computeSecondaryPose(currentPSM3pose, psm3_T_cam, ecm_T_R, ecm_T_w, offset):
     #keep position the same but change the rotation
@@ -291,6 +302,7 @@ def computeSecondaryPose(currentPSM3pose, psm3_T_cam, ecm_T_R, ecm_T_w, offset):
     z_cam_vec = PyKDL.Vector(z_psm3[0], z_psm3[1], z_psm3[2])
     ecm_R_psm3 = PyKDL.Rotation(x_cam_vec, y_cam_vec, z_cam_vec)
     
+
     secondaryPose = PyKDL.Frame(ecm_R_psm3,currentPSM3pose.p)
 
     return secondaryPose
@@ -341,13 +353,32 @@ def computeBoundaryPose(desiredPSM3pose, A_p1, B_p1, C_p1, D_p1, E_p1, psm3_T_ca
         #compute vector for offsetting point to outside of the noGoZone
         desiredPosition = pm.toMatrix(desiredPSM3pose)[0:3,3]
         #vector to the plane
-        vec2plane = -1 * np.dot(desiredPosition - A_top, normals[1]) * normals[1] - normals[1]*0.04 
+        vec2plane = -1 * np.dot(desiredPosition - A_top, normals[1]) * normals[1] - normals[1]*0.06 
 
         compensatedPosition = desiredPosition + vec2plane
+
+        #enforce view distance
+
+        # z = (compensatedPosition - pm.toMatrix(ecm_T_R)[0:3, 3]  - offset ) / LA.norm(compensatedPosition - pm.toMatrix(ecm_T_R)[0:3, 3]  - offset )
+
+        # enforcedPosition = 1 * z * 0.12 + (pm.toMatrix(ecm_T_R)[0:3, 3] - offset)
+        # enforcedPosition = PyKDL.Vector(enforcedPosition[0], enforcedPosition[1], enforcedPosition[2])
+
         desiredPSM3pose.p = PyKDL.Vector(compensatedPosition[0], compensatedPosition[1], compensatedPosition[2])
 
         secondaryPose = computeSecondaryPose(desiredPSM3pose, psm3_T_cam, ecm_T_R, ecm_T_w, offset_vec)
         return secondaryPose
+
+#PURPOSE: To monitor proximity of arm to ring 
+def distanceConstraint(desiredPose, ecm_T_R, offset, df, verbose = False):
+    flag = False
+    dist = LA.norm(pm.toMatrix(ecm_T_R)[0:3, 3] - pm.toMatrix(desiredPose)[0:3, 3] - offset)
+    print(dist)
+    if  dist < df:
+        flag = True
+    if verbose: 
+        print("Proximity Flag = ", str(flag))
+    return flag
 
 
 
@@ -475,135 +506,90 @@ if __name__ == '__main__':
 
     input("    Press Enter to start autonomous tracking...")
     
-    #buffers for filtering
+    #------------------------------------------------FILTERING INITIALIZATION---------------------------------------------------
     # positionFilter = filteringUtils.CircularBuffer(size=40,num_elements=3)
     # rotationFilter = filteringUtils.CircularBuffer(size=60,num_elements=4)
-
     cameraPositionFilter = filteringUtils.CircularBuffer(size=110,num_elements=3)
     cameraOrientationFiler=filteringUtils.CircularBuffer(size=125,num_elements=4)
 
-    ## For every iteration:
+    ######                                                                                                                ######
+    ###### -------------------------------------------AUTOCAM CONTROL LOOP------------------------------------------------######
+    ######                                                                                                                ######
+
     while not rospy.is_shutdown():
 
         # Query the poses for psm1, psm3 and ecm
         psm1_pose_raw = psm1.setpoint_cp()
         psm3_pose = psm3.setpoint_cp()
-
-        # # FILTERING OF PSM1 POSE
-        # #filter the PSM1 pose 
-        # psm1_R=psm1_pose_raw.M
-        # psm1_quaternion=psm1_R.GetQuaternion()
-        # print("quaternionBeforeMean = ", psm1_quaternion)
-        # quat = np.array([psm1_quaternion[0],psm1_quaternion[1], psm1_quaternion[2], psm1_quaternion[3]])
-        # quat = rotationFilter.negateQuaternion(quat)
-
-        # rotationFilter.append(quat)
-        # #positionFilter.append(pm.toMatrix(psm1_pose)[0:3,3])
-        # rotationMean = rotationFilter.get_mean()
-        # print("quaternionAfterMean = ", rotationMean)
-        # rotationMean = rotationFilter.negateQuaternion(rotationMean)
-
-        # rotationMean = PyKDL.Rotation.Quaternion(rotationMean[0],rotationMean[1],rotationMean[2],rotationMean[3])
-        # print("quaternionAfterConversion = ", rotationMean)   
-        # psm1_pose.M = rotationMean
-        # psm1_pose.p = psm1_pose_raw.p
-        # print("psm1_posefinal = ", psm1_pose.M)
-        # # END OF FILTERING OF PSM1 POSE
         psm1_pose =psm1_pose_raw
 
         #compute optimal desired pose
         ecm_T_R = psm1_pose * psm1_T_R
-        print("ecmTR = ", ecm_T_R.M)
-
         z_i = pm.toMatrix(psm3_pose)[0:3, 2]
-
         ecm_T_psm3_desired_Pose, curr_sgn = orient_camera(psm3_T_cam, ecm_T_R, ecm_T_w, z_i, df, offset)
 
-        # if prev_sgn != curr_sgn:
-        #     flip(False)
-        #     ecm_T_psm3_intermediate = compute_intermediate(psm3_T_cam, ecm_T_R, ecm_T_w, df, offset)
-        #     print("Flipping")
-        #     psm3.move_cp(ecm_T_psm3_intermediate).wait()
-        #     psm3.move_cp(ecm_T_psm3_desired_Pose).wait()
-        #     # rospy.sleep(message_rate)
-        # else:
-        #     flip(True)
-        #     psm3.move_cp(ecm_T_psm3_desired_Pose)
-        #     rospy.sleep(message_rate)
-        # prev_sgn = curr_sgn
-
-      
-
         #INTERPOLATE POSE
-        interpolationRequired, interpolatedPose = interpolatePose(ecm_T_psm3_desired_Pose, psm3_pose, verbose= True)
+        interpolationRequired, interpolatedPose = interpolatePose(ecm_T_psm3_desired_Pose, psm3_pose, verbose= False)
 
         if interpolationRequired:
             ecm_T_psm3_desired_Pose = interpolatedPose
 
-        #NOGOZONE FLAGS
 
+        #NOGOZONE FLAGS
         inNoGo = point_in_cube(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4], verbose= False)
         belowFloor = point_below_floor(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4],floor_offset=floor_off, verbose= False)
-       
-        if (inNoGo or belowFloor):
-            # psm3.move_cp(ecm_T_psm3_desired_Pose)
+        orientationFlag = orientationConstraint(ecm_T_psm3_desired_Pose,ecm_T_w, verbose=False)
+        proximityFlag = distanceConstraint(ecm_T_psm3_desired_Pose, ecm_T_R, np.array([offset.x(),offset.y(),offset.z()]), df, verbose=True)
+        
+        if (inNoGo or belowFloor or orientationFlag):
             rospy.sleep(message_rate)
-            # print("in restricted Zone")
-
-            ecm_T_psm3_secondaryPose = computeBoundaryPose(ecm_T_psm3_desired_Pose,points[0], points[1], points[2], points[3], points[4],psm3_T_cam, ecm_T_R, ecm_T_w, offset)
-
-
-            # ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
             
-            #FILTER DESIRED PSM3 (AUTOCAM) POSITION
+            #----------------------HANDLE NO GO ZONE----------------------------------------------------
+            if (inNoGo or belowFloor):
+                ecm_T_psm3_secondaryPose = computeBoundaryPose(ecm_T_psm3_desired_Pose,points[0], points[1], points[2], points[3], points[4],psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+            
+            if (orientationFlag):
+                ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+            
+            #-----------------------FILTER DESIRED PSM3 (AUTOCAM) POSITION-------------------------------
             pos = ecm_T_psm3_secondaryPose.p
             cameraPositionFilter.append(np.array([pos[0], pos[1], pos[2]]))
             pos_mean = cameraPositionFilter.get_mean()
             ecm_T_psm3_secondaryPose.p = PyKDL.Vector(pos_mean[0],pos_mean[1],pos_mean[2])
 
-            # FILTERING OF PSM3 Orientation
+            #----------------------FILTER DESIRED PSM3 ORIENTATION ----------------------------------------
             psm3_R=ecm_T_psm3_secondaryPose.M
             psm3_quaternion=psm3_R.GetQuaternion()
             quat = np.array([psm3_quaternion[0],psm3_quaternion[1], psm3_quaternion[2], psm3_quaternion[3]])
             quat = cameraOrientationFiler.negateQuaternion(quat)
-
             cameraOrientationFiler.append(quat)
-            #positionFilter.append(pm.toMatrix(psm1_pose)[0:3,3])
             rotationMean = cameraOrientationFiler.get_mean()
-
             rotationMean = cameraOrientationFiler.negateQuaternion(rotationMean)
-
             rotationMean = PyKDL.Rotation.Quaternion(rotationMean[0],rotationMean[1],rotationMean[2],rotationMean[3])
             ecm_T_psm3_secondaryPose.M = rotationMean
-
-            # END OF FILTERING OF PSM1 Orientation
+            #----------------------END OF FILTERING----------------------
             
             psm3.move_cp(ecm_T_psm3_secondaryPose)
             rospy.sleep(message_rate)
 
         else:
-            #FILTER DESIRED PSM3 (AUTOCAM) POSITION
+            #----------------------------FILTER DESIRED PSM3 (AUTOCAM) POSITION-----------------------------
             pos = ecm_T_psm3_desired_Pose.p
             cameraPositionFilter.append(np.array([pos[0], pos[1], pos[2]]))
             pos_mean = cameraPositionFilter.get_mean()
             ecm_T_psm3_desired_Pose.p = PyKDL.Vector(pos_mean[0],pos_mean[1],pos_mean[2])
             
-            # FILTERING OF PSM3 Orientation
+            #----------------------------FILTERING OF PSM3 Orientation---------------------------------------
             psm3_R=ecm_T_psm3_desired_Pose.M
             psm3_quaternion=psm3_R.GetQuaternion()
             quat = np.array([psm3_quaternion[0],psm3_quaternion[1], psm3_quaternion[2], psm3_quaternion[3]])
             quat = cameraOrientationFiler.negateQuaternion(quat)
-
             cameraOrientationFiler.append(quat)
-            #positionFilter.append(pm.toMatrix(psm1_pose)[0:3,3])
             rotationMean = cameraOrientationFiler.get_mean()
-
             rotationMean = cameraOrientationFiler.negateQuaternion(rotationMean)
-
             rotationMean = PyKDL.Rotation.Quaternion(rotationMean[0],rotationMean[1],rotationMean[2],rotationMean[3])
             ecm_T_psm3_desired_Pose.M = rotationMean
-
-            # END OF FILTERING OF PSM1 Orientation        
+            #-----------------------------END OF FILTERING -------------------------------------------------------
             
             
             psm3.move_cp(ecm_T_psm3_desired_Pose)
