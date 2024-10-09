@@ -273,7 +273,6 @@ def point_below_floor(P, A, B, C, D, E, floor_offset, verbose):
     
     return False
 
-<<<<<<< HEAD
 #PURPOSE: For constraining the camera to stay on one side of the robot only. Useful in the absence of inverse kinematics
 def orientationConstraint(desiredPSM3pose,ecm_T_w, verbose=False):
     flag = False
@@ -286,9 +285,6 @@ def orientationConstraint(desiredPSM3pose,ecm_T_w, verbose=False):
     return flag
 
 #PURPOSE: Given the current PSM3 and PSM1 pose, compute the pose of PSM3 that keeps PSM3 position constant but alters its orientation such that it views the centroid of the ring held by PSM1
-=======
-#PURPOSE: Given the current PSM3 and PSM1 pose, compute the pose of PSM3 that keeps PSM3 position constant but alters its orientation such that it views the centroid of PSM1
->>>>>>> parent of ea51cee (updated tracking scheme to now move when desired pose is in nogo zone)
 def computeSecondaryPose(currentPSM3pose, psm3_T_cam, ecm_T_R, ecm_T_w, offset):
     #keep position the same but change the rotation
 
@@ -311,7 +307,6 @@ def computeSecondaryPose(currentPSM3pose, psm3_T_cam, ecm_T_R, ecm_T_w, offset):
 
     return secondaryPose
 
-<<<<<<< HEAD
 #Computes the pose that is closest to the desired point but lies on the top boundary of the noGoZone. A_p1 etc are the nogo zone defined in PSM1 coordinate system
 def computeBoundaryPose(desiredPSM3pose, A_p1, B_p1, C_p1, D_p1, E_p1, psm3_T_cam, ecm_T_R, ecm_T_w, offset_vec):
         offset = np.array([offset_vec.x(),offset_vec.y(),offset_vec.z()])
@@ -389,8 +384,6 @@ def distanceConstraint(desiredPose, ecm_T_R, offset, df, verbose = False):
 
 
 
-=======
->>>>>>> parent of ea51cee (updated tracking scheme to now move when desired pose is in nogo zone)
 def interpolatePose(desiredPose,currentPose, verbose):
     interpolationRequired = False
 
@@ -459,7 +452,7 @@ if __name__ == '__main__':
     cam_offset = 0.045 ## 4 cm
     df = 0.12 ## in cms
     ## HARD CODED OFFSET FOR GIVEN JOINT CONFIGURATION
-    
+    ## To get to PSM1 coordinate system, take PSM3 from measure_cp and add offset
     offset = load_and_set_calibration()
 
     # Find respective transforms from psm1 to ring and from psm3 to cam
@@ -495,7 +488,9 @@ if __name__ == '__main__':
         rospy.sleep(message_rate)
     
         # print("in restricted Zone")
-        ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+        ecm_T_psm3_secondaryPose = computeBoundaryPose(ecm_T_psm3_desired_Pose,points[0], points[1], points[2], points[3], points[4],psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+
+        #ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
         psm3.move_cp(ecm_T_psm3_secondaryPose)
         print("Secondary Pose below")
         print(ecm_T_psm3_secondaryPose)
@@ -514,12 +509,7 @@ if __name__ == '__main__':
     #------------------------------------------------FILTERING INITIALIZATION---------------------------------------------------
     # positionFilter = filteringUtils.CircularBuffer(size=40,num_elements=3)
     # rotationFilter = filteringUtils.CircularBuffer(size=60,num_elements=4)
-<<<<<<< HEAD
     cameraPositionFilter = filteringUtils.CircularBuffer(size=110,num_elements=3)
-=======
-
-    cameraPositionFilter = filteringUtils.CircularBuffer(size=80,num_elements=3)
->>>>>>> parent of ea51cee (updated tracking scheme to now move when desired pose is in nogo zone)
     cameraOrientationFiler=filteringUtils.CircularBuffer(size=125,num_elements=4)
 
     ######                                                                                                                ######
@@ -553,11 +543,6 @@ if __name__ == '__main__':
         
         if (inNoGo or belowFloor or orientationFlag):
             rospy.sleep(message_rate)
-<<<<<<< HEAD
-=======
-            # print("in restricted Zone")
-            ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
->>>>>>> parent of ea51cee (updated tracking scheme to now move when desired pose is in nogo zone)
             
             #----------------------HANDLE NO GO ZONE----------------------------------------------------
             if (inNoGo or belowFloor):
