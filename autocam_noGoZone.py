@@ -464,8 +464,8 @@ if __name__ == '__main__':
 
     ## For first iteration, we need to gracefully park PSM3 at the start of our tracking...
     # Query the poses for psm1, psm3 and ecm
-    psm1_pose = psm1.setpoint_cp()
-    psm3_pose = psm3.setpoint_cp()
+    psm1_pose = psm1.measured_cp()
+    psm3_pose = psm3.measured_cp()
 
     ecm_T_R = psm1_pose * psm1_T_R
 
@@ -519,8 +519,8 @@ if __name__ == '__main__':
     while not rospy.is_shutdown():
 
         # Query the poses for psm1, psm3 and ecm
-        psm1_pose_raw = psm1.setpoint_cp()
-        psm3_pose = psm3.setpoint_cp()
+        psm1_pose_raw = psm1.measured_cp()
+        psm3_pose = psm3.measured_cp()
         psm1_pose =psm1_pose_raw
 
         #compute optimal desired pose
@@ -539,17 +539,21 @@ if __name__ == '__main__':
         inNoGo = point_in_cube(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4], verbose= False)
         belowFloor = point_below_floor(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4],floor_offset=floor_off, verbose= False)
         orientationFlag = orientationConstraint(ecm_T_psm3_desired_Pose,ecm_T_w, verbose=False)
-        proximityFlag = distanceConstraint(ecm_T_psm3_desired_Pose, ecm_T_R, np.array([offset.x(),offset.y(),offset.z()]), df, verbose=True)
+        proximityFlag = distanceConstraint(ecm_T_psm3_desired_Pose, ecm_T_R, np.array([offset.x(),offset.y(),offset.z()]), df=0.09, verbose=True)
         
         if (inNoGo or belowFloor or orientationFlag):
             rospy.sleep(message_rate)
             
             #----------------------HANDLE NO GO ZONE----------------------------------------------------
-            if (inNoGo or belowFloor):
+
+            if (orientationFlag or proximityFlag):
+                ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+
+
+            elif (inNoGo or belowFloor):
                 ecm_T_psm3_secondaryPose = computeBoundaryPose(ecm_T_psm3_desired_Pose,points[0], points[1], points[2], points[3], points[4],psm3_T_cam, ecm_T_R, ecm_T_w, offset)
             
-            if (orientationFlag):
-                ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+
             
             #-----------------------FILTER DESIRED PSM3 (AUTOCAM) POSITION-------------------------------
             pos = ecm_T_psm3_secondaryPose.p
