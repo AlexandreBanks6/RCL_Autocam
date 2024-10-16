@@ -197,9 +197,9 @@ class teleop:
             #     hrsv_T_controller_curr.M=hrsv_T_controller_origin.M
 
             ## DISTANCE BASED METHOD
-            ecm_T_parent_curr = self.parent_arm.setpoint_cp() ## w.r.t ECM
+            ecm_T_parent_curr = self.parent_arm.measured_cp() ## w.r.t ECM
             ecm_T_cam_curr = ecm_T_parent_curr * self.parent_T_cam
-            distance = LA.norm(pm.toMatrix(ecm_T_cam_curr)[0:3, 3] -pm.toMatrix(ecm_T_child_stationary)[0:3, 3])
+            distance = LA.norm(pm.toMatrix(ecm_T_cam_curr)[0:3, 3] - pm.toMatrix(ecm_T_child_stationary)[0:3, 3])
             if distance > 0.01:
                 ecm_T_child_stationary = ecm_T_cam_curr
 

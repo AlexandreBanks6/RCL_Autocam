@@ -17,9 +17,13 @@ def setting_arms_state(arm):
         arm.enable()
         arm.home()
 
-    arm_pose = arm.setpoint_cp()
-    arm_pose.M = PyKDL.Frame().Identity().M
-    arm.move_cp(arm_pose).wait()
+    # arm_pose = arm.setpoint_cp()
+    # arm_pose.M = PyKDL.Frame().Identity().M
+    # arm.move_jp(arm_pose).wait()\
+    arm_joints = arm.measured_js()[0]
+    arm_joints[3:6] = [ 0.0, 0.0, 0.0]
+    arm.move_jp(arm_joints).wait()
+    arm.jaw.move_jp([[0]])
 
 
 def calibrate(psm1, psm3):
@@ -34,17 +38,14 @@ def calibrate(psm1, psm3):
     print(f"Now collecting {n} points...")
     for i in range(n):
 
-        print(" Please move PSM1 to touch each fiducial.")
+        print(" Move PSM1 & PSM3 to touch the next fiducial.")
         input("    Press Enter to continue...")
         psm1_pose.append(psm1.measured_cp())
-
-    print("Finished Calibration for PSM1")
-
-    for i in range(n):
-
-        print(" Please move PSM3 to the fiducials.")
-        input("    Press Enter to continue...")
         psm3_pose.append(psm3.measured_cp())
+
+    print("Finished Calibration")
+
+
 
     pickle.dump(psm1_pose, open("psm1_pose.p", "wb")) 
     pickle.dump(psm3_pose, open("psm3_pose.p", "wb")) 

@@ -370,9 +370,10 @@ def computeBoundaryPose(desiredPSM3pose, A_p1, B_p1, C_p1, D_p1, E_p1, psm3_T_ca
         return secondaryPose
 
 #PURPOSE: To monitor proximity of arm to ring 
-def distanceConstraint(desiredPose, ecm_T_R, offset, df, verbose = False):
+def distanceConstraint(desiredPose, ecm_T_R, offset, psm3_T_cam, df, verbose = False) :
     flag = False
-    dist = LA.norm(pm.toMatrix(ecm_T_R)[0:3, 3] - pm.toMatrix(desiredPose)[0:3, 3] - offset)
+    desiredCameraPose = desiredPose*psm3_T_cam
+    dist = LA.norm(pm.toMatrix(ecm_T_R)[0:3, 3] - pm.toMatrix(desiredCameraPose)[0:3, 3] - offset)
     print(dist)
     if  dist < df:
         flag = True
@@ -450,7 +451,7 @@ if __name__ == '__main__':
 
     ring_offset = 0.033 ## 1.5 cm
     cam_offset = 0.045 ## 4 cm
-    df = 0.12 ## in cms
+    df = 0.10 ## in cms
     ## HARD CODED OFFSET FOR GIVEN JOINT CONFIGURATION
     ## To get to PSM1 coordinate system, take PSM3 from measure_cp and add offset
     offset = load_and_set_calibration()
@@ -510,7 +511,7 @@ if __name__ == '__main__':
     # positionFilter = filteringUtils.CircularBuffer(size=40,num_elements=3)
     # rotationFilter = filteringUtils.CircularBuffer(size=60,num_elements=4)
     cameraPositionFilter = filteringUtils.CircularBuffer(size=110,num_elements=3)
-    cameraOrientationFiler=filteringUtils.CircularBuffer(size=125,num_elements=4)
+    cameraOrientationFiler=filteringUtils.CircularBuffer(size=20,num_elements=4)
 
     ######                                                                                                                ######
     ###### -------------------------------------------AUTOCAM CONTROL LOOP------------------------------------------------######
@@ -539,7 +540,7 @@ if __name__ == '__main__':
         inNoGo = point_in_cube(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4], verbose= False)
         belowFloor = point_below_floor(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4],floor_offset=floor_off, verbose= False)
         orientationFlag = orientationConstraint(ecm_T_psm3_desired_Pose,ecm_T_w, verbose=False)
-        proximityFlag = distanceConstraint(ecm_T_psm3_desired_Pose, ecm_T_R, np.array([offset.x(),offset.y(),offset.z()]), df=0.09, verbose=True)
+        proximityFlag = distanceConstraint(ecm_T_psm3_desired_Pose, ecm_T_R, np.array([offset.x(),offset.y(),offset.z()]),psm3_T_cam= psm3_T_cam, df=0.10, verbose=True)
         
         if (inNoGo or belowFloor or orientationFlag):
             rospy.sleep(message_rate)
