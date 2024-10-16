@@ -23,7 +23,9 @@ def setting_arms_state(arm):
     arm_joints = arm.measured_js()[0]
     arm_joints[3:6] = [ 0.0, 0.0, 0.0]
     arm.move_jp(arm_joints).wait()
-    arm.jaw.move_jp([[0]])
+    jawAng = arm.jaw.measured_js()
+    jawAng[0] = 0.0
+    arm.jaw.move_jp(np.array([0.0]))
 
 
 def calibrate(psm1, psm3):

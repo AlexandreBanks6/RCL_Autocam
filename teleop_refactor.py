@@ -8,6 +8,7 @@ from sensors import footpedal
 import sys
 import argparse
 from numpy import linalg as LA
+import filteringUtils
 
 ## Important notes:
 ## For MTM motion:
@@ -178,7 +179,33 @@ class teleop:
 
         clutch_pressed_prev = False
 
+        ###########Init Filters
+        ecm_T_child_PositionFilter=filteringUtils.CircularBuffer(size=25,num_elements=3)
+        ecm_T_child_OrientationFilter=filteringUtils.CircularBuffer(size=25,num_elements=4)
+
         ecm_T_child_stationary = ecm_T_child_ini
+
+        #---------------Filter Teleop Frame Position--------------
+        pos=ecm_T_child_stationary.p
+        ecm_T_child_PositionFilter.append(np.array([pos[0], pos[1], pos[2]]))
+        pos_mean = ecm_T_child_PositionFilter.get_mean()
+        ecm_T_child_stationary.p=PyKDL.Vector(pos_mean[0],pos_mean[1],pos_mean[2])
+
+
+
+        #---------------Filter Teleop Frame Orientation--------------
+        ecm_T_child_stationary_R=ecm_T_child_stationary.M
+        ecm_T_child_stationary_quaternion=ecm_T_child_stationary_R.GetQuaternion()
+        quat = np.array([ecm_T_child_stationary_quaternion[0],ecm_T_child_stationary_quaternion[1], ecm_T_child_stationary_quaternion[2], ecm_T_child_stationary_quaternion[3]])
+        quat = ecm_T_child_OrientationFilter.negateQuaternion(quat)
+        ecm_T_child_OrientationFilter.append(quat)
+        rotationMean = ecm_T_child_OrientationFilter.get_mean()
+        rotationMean = ecm_T_child_OrientationFilter.negateQuaternion(rotationMean)
+        rotationMean = PyKDL.Rotation.Quaternion(rotationMean[0],rotationMean[1],rotationMean[2],rotationMean[3])
+        ecm_T_child_stationary.M=rotationMean
+
+        
+        
         while self.start_teleop == True:
 
             # Check if clutch is pressed or not
@@ -202,6 +229,26 @@ class teleop:
             distance = LA.norm(pm.toMatrix(ecm_T_cam_curr)[0:3, 3] - pm.toMatrix(ecm_T_child_stationary)[0:3, 3])
             if distance > 0.01:
                 ecm_T_child_stationary = ecm_T_cam_curr
+
+                #---------------Filter Teleop Frame Position--------------
+                pos=ecm_T_child_stationary.p
+                ecm_T_child_PositionFilter.append(np.array([pos[0], pos[1], pos[2]]))
+                pos_mean = ecm_T_child_PositionFilter.get_mean()
+                ecm_T_child_stationary.p=PyKDL.Vector(pos_mean[0],pos_mean[1],pos_mean[2])
+
+
+
+                #---------------Filter Teleop Frame Orientation--------------
+                ecm_T_child_stationary_R=ecm_T_child_stationary.M
+                ecm_T_child_stationary_quaternion=ecm_T_child_stationary_R.GetQuaternion()
+                quat = np.array([ecm_T_child_stationary_quaternion[0],ecm_T_child_stationary_quaternion[1], ecm_T_child_stationary_quaternion[2], ecm_T_child_stationary_quaternion[3]])
+                quat = ecm_T_child_OrientationFilter.negateQuaternion(quat)
+                ecm_T_child_OrientationFilter.append(quat)
+                rotationMean = ecm_T_child_OrientationFilter.get_mean()
+                rotationMean = ecm_T_child_OrientationFilter.negateQuaternion(rotationMean)
+                rotationMean = PyKDL.Rotation.Quaternion(rotationMean[0],rotationMean[1],rotationMean[2],rotationMean[3])
+                ecm_T_child_stationary.M=rotationMean
+            
 
 
                 
@@ -248,6 +295,7 @@ class teleop:
                     clutch_pressed_prev = False
                     
                 self.child_arm.move_cp(ecm_T_child_next)
+                self.child_arm.move_jp(np.array([0.0]))
 
                 ecm_T_child_ini = ecm_T_child_next
 

@@ -511,7 +511,7 @@ if __name__ == '__main__':
     # positionFilter = filteringUtils.CircularBuffer(size=40,num_elements=3)
     # rotationFilter = filteringUtils.CircularBuffer(size=60,num_elements=4)
     cameraPositionFilter = filteringUtils.CircularBuffer(size=110,num_elements=3)
-    cameraOrientationFiler=filteringUtils.CircularBuffer(size=20,num_elements=4)
+    cameraOrientationFiler=filteringUtils.CircularBuffer(size=110,num_elements=4)
 
     ######                                                                                                                ######
     ###### -------------------------------------------AUTOCAM CONTROL LOOP------------------------------------------------######
