@@ -295,8 +295,7 @@ class teleop:
                     clutch_pressed_prev = False
                     
                 self.child_arm.move_cp(ecm_T_child_next)
-                self.child_arm.move_jp(np.array([0.0]))
-
+                self.child_arm.jaw.move_jp(np.array([0.0]))
                 ecm_T_child_ini = ecm_T_child_next
 
             rospy.sleep(self.expected_interval)

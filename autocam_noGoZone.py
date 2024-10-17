@@ -374,7 +374,7 @@ def distanceConstraint(desiredPose, ecm_T_R, offset, psm3_T_cam, df, verbose = F
     flag = False
     desiredCameraPose = desiredPose*psm3_T_cam
     dist = LA.norm(pm.toMatrix(ecm_T_R)[0:3, 3] - pm.toMatrix(desiredCameraPose)[0:3, 3] - offset)
-    print(dist)
+    # print(dist)
     if  dist < df:
         flag = True
     if verbose: 
@@ -483,25 +483,27 @@ if __name__ == '__main__':
 
     inNoGo = point_in_cube(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4], verbose= False)
     belowFloor = point_below_floor(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4],floor_offset=floor_off, verbose= False)
-       
-    if (inNoGo or belowFloor):
+    orientationFlag = orientationConstraint(ecm_T_psm3_desired_Pose,ecm_T_w, verbose=False)
+    proximityFlag = distanceConstraint(ecm_T_psm3_desired_Pose, ecm_T_R, np.array([offset.x(),offset.y(),offset.z()]),psm3_T_cam= psm3_T_cam, df=0.08, verbose=False)
+        
+    if (inNoGo or belowFloor or orientationFlag or proximityFlag):
         # psm3.move_cp(ecm_T_psm3_desired_Pose)
-        rospy.sleep(message_rate)
-    
-        # print("in restricted Zone")
-        ecm_T_psm3_secondaryPose = computeBoundaryPose(ecm_T_psm3_desired_Pose,points[0], points[1], points[2], points[3], points[4],psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+            if (orientationFlag or proximityFlag):
+                ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
 
-        #ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
-        psm3.move_cp(ecm_T_psm3_secondaryPose)
-        print("Secondary Pose below")
-        print(ecm_T_psm3_secondaryPose)
-        print("Primary Pose Below")
-        print(psm3_pose)
-        rospy.sleep(message_rate)
+
+            elif (inNoGo or belowFloor):
+                ecm_T_psm3_secondaryPose = computeBoundaryPose(ecm_T_psm3_desired_Pose,points[0], points[1], points[2], points[3], points[4],psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+                point2centroid = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+                ecm_T_psm3_secondaryPose.M = point2centroid.M
+
+            psm3.move_cp(ecm_T_psm3_secondaryPose)
 
     else:
         psm3.move_cp(ecm_T_psm3_desired_Pose)
-        rospy.sleep(message_rate)
+
+    psm3.jaw.move_jp(np.array([0.0]))
+    rospy.sleep(message_rate)
 
 
 
@@ -511,7 +513,7 @@ if __name__ == '__main__':
     # positionFilter = filteringUtils.CircularBuffer(size=40,num_elements=3)
     # rotationFilter = filteringUtils.CircularBuffer(size=60,num_elements=4)
     cameraPositionFilter = filteringUtils.CircularBuffer(size=110,num_elements=3)
-    cameraOrientationFiler=filteringUtils.CircularBuffer(size=110,num_elements=4)
+    cameraOrientationFiler=filteringUtils.CircularBuffer(size=1,num_elements=4)
 
     ######                                                                                                                ######
     ###### -------------------------------------------AUTOCAM CONTROL LOOP------------------------------------------------######
@@ -540,7 +542,7 @@ if __name__ == '__main__':
         inNoGo = point_in_cube(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4], verbose= False)
         belowFloor = point_below_floor(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4],floor_offset=floor_off, verbose= False)
         orientationFlag = orientationConstraint(ecm_T_psm3_desired_Pose,ecm_T_w, verbose=False)
-        proximityFlag = distanceConstraint(ecm_T_psm3_desired_Pose, ecm_T_R, np.array([offset.x(),offset.y(),offset.z()]),psm3_T_cam= psm3_T_cam, df=0.10, verbose=True)
+        proximityFlag = distanceConstraint(ecm_T_psm3_desired_Pose, ecm_T_R, np.array([offset.x(),offset.y(),offset.z()]),psm3_T_cam= psm3_T_cam, df=0.08, verbose=False)
         
         if (inNoGo or belowFloor or orientationFlag):
             rospy.sleep(message_rate)
@@ -553,7 +555,8 @@ if __name__ == '__main__':
 
             elif (inNoGo or belowFloor):
                 ecm_T_psm3_secondaryPose = computeBoundaryPose(ecm_T_psm3_desired_Pose,points[0], points[1], points[2], points[3], points[4],psm3_T_cam, ecm_T_R, ecm_T_w, offset)
-            
+                point2centroid = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+                ecm_T_psm3_secondaryPose.M = point2centroid.M
 
             
             #-----------------------FILTER DESIRED PSM3 (AUTOCAM) POSITION-------------------------------
@@ -575,7 +578,8 @@ if __name__ == '__main__':
             #----------------------END OF FILTERING----------------------
             
             psm3.move_cp(ecm_T_psm3_secondaryPose)
-            rospy.sleep(message_rate)
+            print("INSIDE ")
+            
 
         else:
             #----------------------------FILTER DESIRED PSM3 (AUTOCAM) POSITION-----------------------------
@@ -584,6 +588,9 @@ if __name__ == '__main__':
             pos_mean = cameraPositionFilter.get_mean()
             ecm_T_psm3_desired_Pose.p = PyKDL.Vector(pos_mean[0],pos_mean[1],pos_mean[2])
             
+            #point at centroid
+            point2centroid = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+            ecm_T_psm3_desired_Pose.M = point2centroid.M
             #----------------------------FILTERING OF PSM3 Orientation---------------------------------------
             psm3_R=ecm_T_psm3_desired_Pose.M
             psm3_quaternion=psm3_R.GetQuaternion()
@@ -595,10 +602,15 @@ if __name__ == '__main__':
             rotationMean = PyKDL.Rotation.Quaternion(rotationMean[0],rotationMean[1],rotationMean[2],rotationMean[3])
             ecm_T_psm3_desired_Pose.M = rotationMean
             #-----------------------------END OF FILTERING -------------------------------------------------------
-            
-            
+
             psm3.move_cp(ecm_T_psm3_desired_Pose)
-            rospy.sleep(message_rate)
+            print("OUTSIDE ")
+
+
+        psm3.jaw.move_jp(np.array([0.0]))            
+        rospy.sleep(message_rate)
+
+        
             
 
 
