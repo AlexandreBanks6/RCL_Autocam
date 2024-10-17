@@ -353,7 +353,7 @@ def computeBoundaryPose(desiredPSM3pose, A_p1, B_p1, C_p1, D_p1, E_p1, psm3_T_ca
         #compute vector for offsetting point to outside of the noGoZone
         desiredPosition = pm.toMatrix(desiredPSM3pose)[0:3,3]
         #vector to the plane
-        vec2plane = -1 * np.dot(desiredPosition - A_top, normals[1]) * normals[1] - normals[1]*0.06 
+        vec2plane = -1 * np.dot(desiredPosition - A_top, normals[1]) * normals[1] - normals[1]*0.08 
 
         compensatedPosition = desiredPosition + vec2plane
 
@@ -500,6 +500,9 @@ if __name__ == '__main__':
             psm3.move_cp(ecm_T_psm3_secondaryPose)
 
     else:
+        
+        point2centroid = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+        ecm_T_psm3_desired_Pose.M = point2centroid.M
         psm3.move_cp(ecm_T_psm3_desired_Pose)
 
     psm3.jaw.move_jp(np.array([0.0]))
@@ -513,7 +516,7 @@ if __name__ == '__main__':
     # positionFilter = filteringUtils.CircularBuffer(size=40,num_elements=3)
     # rotationFilter = filteringUtils.CircularBuffer(size=60,num_elements=4)
     cameraPositionFilter = filteringUtils.CircularBuffer(size=110,num_elements=3)
-    cameraOrientationFiler=filteringUtils.CircularBuffer(size=1,num_elements=4)
+    cameraOrientationFiler=filteringUtils.CircularBuffer(size=3,num_elements=4)
 
     ######                                                                                                                ######
     ###### -------------------------------------------AUTOCAM CONTROL LOOP------------------------------------------------######
@@ -541,7 +544,7 @@ if __name__ == '__main__':
         #NOGOZONE FLAGS
         inNoGo = point_in_cube(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4], verbose= False)
         belowFloor = point_below_floor(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4],floor_offset=floor_off, verbose= False)
-        orientationFlag = orientationConstraint(ecm_T_psm3_desired_Pose,ecm_T_w, verbose=False)
+        orientationFlag = orientationConstraint(ecm_T_psm3_desired_Pose,ecm_T_w, verbose=True)
         proximityFlag = distanceConstraint(ecm_T_psm3_desired_Pose, ecm_T_R, np.array([offset.x(),offset.y(),offset.z()]),psm3_T_cam= psm3_T_cam, df=0.08, verbose=False)
         
         if (inNoGo or belowFloor or orientationFlag):
@@ -578,7 +581,6 @@ if __name__ == '__main__':
             #----------------------END OF FILTERING----------------------
             
             psm3.move_cp(ecm_T_psm3_secondaryPose)
-            print("INSIDE ")
             
 
         else:
@@ -604,7 +606,6 @@ if __name__ == '__main__':
             #-----------------------------END OF FILTERING -------------------------------------------------------
 
             psm3.move_cp(ecm_T_psm3_desired_Pose)
-            print("OUTSIDE ")
 
 
         psm3.jaw.move_jp(np.array([0.0]))            
