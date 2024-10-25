@@ -208,7 +208,28 @@ def invHomogeneousNumpy(transform):
     inverted_transform[0:3,3]=neg_R_trans_d
     return inverted_transform
 
+def rotationX(theta):
+    #Rotate about x axis by theta
+    R=np.array([[1,0,0],
+               [0,np.cos(theta),-np.sin(theta)],
+               [0,np.sin(theta),np.cos(theta)]],dtype='float32')
+    return R
 
+
+def rotationY(theta):
+    #Rotate about x axis by theta
+    R=np.array([[1,0,0],
+               [0,np.cos(theta),-np.sin(theta)],
+               [0,np.sin(theta),np.cos(theta)]],dtype='float32')
+    return R
+
+
+def rotationZ(theta):
+    #Rotate about z axis by theta
+    R=np.array([[np.cos(theta),0,np.sin(theta)],
+               [0,0,0],
+               [-np.sin(theta),0,np.cos(theta)]],dtype='float32')
+    return R
 
 def fit_ellipse(x, y, method='RANSAC', w=None):
     raise NotImplementedError   # better to use a method in the OpenCV

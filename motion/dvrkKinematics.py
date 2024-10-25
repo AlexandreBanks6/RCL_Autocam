@@ -103,6 +103,9 @@ class dvrkKinematics():
         if method=='analytic':
             # T = np.linalg.inv(T)
             T = U.invHomogeneousNumpy(T)
+            # Rot=U.rotationZ(np.pi)
+            # T[0:3,0:3]=T[0:3,0:3]@Rot
+
             if np.shape(T) == (4,4):
                 x84 = T[0, 3]
                 y84 = T[1, 3]
