@@ -17,9 +17,12 @@ def setting_arms_state(arm):
         arm.enable()
         arm.home()
 
-    arm_pose = arm.setpoint_cp()
-    arm_pose.M = PyKDL.Frame().Identity().M
-    arm.move_cp(arm_pose).wait()
+    arm_joints = arm.measured_js()[0]
+    arm_joints[3:6] = [ 0.0, 0.0, 0.0]
+    arm.move_jp(arm_joints).wait()
+    jawAng = arm.jaw.measured_js()
+    jawAng[0] = 0.0
+    arm.jaw.move_jp(np.array([0.0]))
 
 
 def collectNoGo(psm1):

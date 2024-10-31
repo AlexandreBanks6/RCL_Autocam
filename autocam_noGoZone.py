@@ -451,7 +451,7 @@ if __name__ == '__main__':
 
     ring_offset = 0.033 ## 1.5 cm
     cam_offset = 0.045 ## 4 cm
-    df = 0.10 ## in cms
+    df = 0.11 ## in cms
     ## HARD CODED OFFSET FOR GIVEN JOINT CONFIGURATION
     ## To get to PSM1 coordinate system, take PSM3 from measure_cp and add offset
     offset = load_and_set_calibration()
@@ -466,6 +466,9 @@ if __name__ == '__main__':
     ## For first iteration, we need to gracefully park PSM3 at the start of our tracking...
     # Query the poses for psm1, psm3 and ecm
     psm1_pose = psm1.measured_cp()
+
+
+
     psm3_pose = psm3.measured_cp()
 
     ecm_T_R = psm1_pose * psm1_T_R
@@ -479,7 +482,7 @@ if __name__ == '__main__':
       #load points for noGoZone
     points = load_noGoZoneCalibration()
     #set constraints on noGoZone
-    floor_off = 0.07 #offset from floor of calibration
+    floor_off = 0.06 #offset from floor of calibration
 
     inNoGo = point_in_cube(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4], verbose= False)
     belowFloor = point_below_floor(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4],floor_offset=floor_off, verbose= False)
@@ -516,18 +519,38 @@ if __name__ == '__main__':
     # positionFilter = filteringUtils.CircularBuffer(size=40,num_elements=3)
     # rotationFilter = filteringUtils.CircularBuffer(size=60,num_elements=4)
     cameraPositionFilter = filteringUtils.CircularBuffer(size=110,num_elements=3)
-    cameraOrientationFiler=filteringUtils.CircularBuffer(size=3,num_elements=4)
+    cameraOrientationFiler=filteringUtils.CircularBuffer(size=10,num_elements=4)
 
     ######                                                                                                                ######
     ###### -------------------------------------------AUTOCAM CONTROL LOOP------------------------------------------------######
     ######                                                                                                                ######
 
+    toolHolderPos = filteringUtils.CircularBuffer(size=110,num_elements=3)
+    toolHolderOrientation = filteringUtils.CircularBuffer(size=3,num_elements=4)
+
+
     while not rospy.is_shutdown():
 
         # Query the poses for psm1, psm3 and ecm
         psm1_pose_raw = psm1.measured_cp()
+        pos = psm1_pose_raw.p
+        toolHolderPos.append(np.array([pos[0], pos[1], pos[2]]))
+        filtered = toolHolderPos.get_mean()
+        psm1_pose.p = PyKDL.Vector(filtered[0], filtered[1], filtered[2])
+
+        rot = psm1_pose_raw.M
+        psm1_quaternion=rot.GetQuaternion()
+        quat = np.array([psm1_quaternion[0],psm1_quaternion[1], psm1_quaternion[2], psm1_quaternion[3]])
+        quat = toolHolderOrientation.negateQuaternion(quat)
+        toolHolderOrientation.append(quat)
+        rotationMean = toolHolderOrientation.get_mean()
+        rotationMean = toolHolderOrientation.negateQuaternion(rotationMean)
+        rotationMean = PyKDL.Rotation.Quaternion(rotationMean[0],rotationMean[1],rotationMean[2],rotationMean[3])
+        psm1_pose.M = rotationMean
+
+
         psm3_pose = psm3.measured_cp()
-        psm1_pose =psm1_pose_raw
+
 
         #compute optimal desired pose
         ecm_T_R = psm1_pose * psm1_T_R
@@ -544,9 +567,12 @@ if __name__ == '__main__':
         #NOGOZONE FLAGS
         inNoGo = point_in_cube(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4], verbose= False)
         belowFloor = point_below_floor(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4],floor_offset=floor_off, verbose= False)
-        orientationFlag = orientationConstraint(ecm_T_psm3_desired_Pose,ecm_T_w, verbose=True)
+        orientationFlag = orientationConstraint(ecm_T_psm3_desired_Pose,ecm_T_w, verbose=False)
         proximityFlag = distanceConstraint(ecm_T_psm3_desired_Pose, ecm_T_R, np.array([offset.x(),offset.y(),offset.z()]),psm3_T_cam= psm3_T_cam, df=0.08, verbose=False)
         
+        print("In No Go: " + str(inNoGo) + " BelowFloor: " + str(belowFloor) + " orientationFlag: " + str(orientationFlag) + " proximityFlag: " +str(proximityFlag))
+
+
         if (inNoGo or belowFloor or orientationFlag):
             rospy.sleep(message_rate)
             
@@ -558,8 +584,8 @@ if __name__ == '__main__':
 
             elif (inNoGo or belowFloor):
                 ecm_T_psm3_secondaryPose = computeBoundaryPose(ecm_T_psm3_desired_Pose,points[0], points[1], points[2], points[3], points[4],psm3_T_cam, ecm_T_R, ecm_T_w, offset)
-                point2centroid = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
-                ecm_T_psm3_secondaryPose.M = point2centroid.M
+                # point2centroid = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+                # ecm_T_psm3_secondaryPose.M = point2centroid.M
 
             
             #-----------------------FILTER DESIRED PSM3 (AUTOCAM) POSITION-------------------------------

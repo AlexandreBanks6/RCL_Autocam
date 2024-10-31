@@ -180,8 +180,8 @@ class teleop:
         clutch_pressed_prev = False
 
         ###########Init Filters
-        ecm_T_child_PositionFilter=filteringUtils.CircularBuffer(size=25,num_elements=3)
-        ecm_T_child_OrientationFilter=filteringUtils.CircularBuffer(size=25,num_elements=4)
+        ecm_T_child_PositionFilter=filteringUtils.CircularBuffer(size=30,num_elements=3)
+        ecm_T_child_OrientationFilter=filteringUtils.CircularBuffer(size=30,num_elements=4)
 
         ecm_T_child_stationary = ecm_T_child_ini
 
