@@ -1,4 +1,5 @@
 import numpy as np
+import PyKDL
 
 class CircularBuffer:
     def __init__(self, size, num_elements):
@@ -41,3 +42,23 @@ class CircularBuffer:
         if quat[3] < 0:
             quat = -1*quat
         return quat
+    
+
+class rotationBuffer(CircularBuffer):
+    def __init__(self, size, num_elements):
+        super().__init__(size, num_elements) #call parent constructor
+
+    #recieves a pyKDL rotation frame (.M)
+    def append(self, element):
+        quat = element.GetQuaternion()
+        quat = np.array([quat[0],quat[1], quat[2], quat[3]])
+        quat = self.negateQuaternion(quat)
+        super().append(quat)
+    
+    #@override method (returns a .M pykdl frame)
+    def get_mean(self):
+        quat = super().get_mean()
+        quat = self.negateQuaternion(quat)
+        return PyKDL.Rotation.Quaternion(quat[0],quat[1],quat[2],quat[3])
+
+    
