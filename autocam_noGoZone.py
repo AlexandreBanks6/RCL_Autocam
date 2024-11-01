@@ -353,7 +353,7 @@ def computeBoundaryPose(desiredPSM3pose, A_p1, B_p1, C_p1, D_p1, E_p1, psm3_T_ca
         #compute vector for offsetting point to outside of the noGoZone
         desiredPosition = pm.toMatrix(desiredPSM3pose)[0:3,3]
         #vector to the plane
-        vec2plane = -1 * np.dot(desiredPosition - A_top, normals[1]) * normals[1] 
+        vec2plane = -1 * np.dot(desiredPosition - A_top, normals[1]) * normals[1]
 
         compensatedPosition = desiredPosition + vec2plane
 
@@ -366,8 +366,8 @@ def computeBoundaryPose(desiredPSM3pose, A_p1, B_p1, C_p1, D_p1, E_p1, psm3_T_ca
 
         desiredPSM3pose.p = PyKDL.Vector(compensatedPosition[0], compensatedPosition[1], compensatedPosition[2])
 
-        secondaryPose = computeSecondaryPose(desiredPSM3pose, psm3_T_cam, ecm_T_R, ecm_T_w, offset_vec)
-        return secondaryPose
+        # secondaryPose = computeSecondaryPose(desiredPSM3pose, psm3_T_cam, ecm_T_R, ecm_T_w, offset_vec)
+        return desiredPSM3pose
 
 #PURPOSE: To monitor proximity of arm to ring 
 def distanceConstraint(desiredPose, ecm_T_R, offset, psm3_T_cam, df, verbose = False) :
@@ -482,7 +482,7 @@ if __name__ == '__main__':
       #load points for noGoZone
     points = load_noGoZoneCalibration()
     #set constraints on noGoZone
-    floor_off = 0.06 #offset from floor of calibration
+    floor_off = 0.04 #offset from floor of calibration
 
     inNoGo = point_in_cube(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4], verbose= False)
     belowFloor = point_below_floor(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4],floor_offset=floor_off, verbose= False)
@@ -525,8 +525,8 @@ if __name__ == '__main__':
     ###### -------------------------------------------AUTOCAM CONTROL LOOP------------------------------------------------######
     ######                                                                                                                ######
 
-    psm1_positionFilter = filteringUtils.CircularBuffer(size=110,num_elements=3)
-    psm1_orientationFilter = filteringUtils.rotationBuffer(size=3,num_elements=4)
+    psm1_positionFilter = filteringUtils.CircularBuffer(size=1,num_elements=3)
+    psm1_orientationFilter = filteringUtils.rotationBuffer(size=1,num_elements=4)
 
 
     while not rospy.is_shutdown():
@@ -574,7 +574,7 @@ if __name__ == '__main__':
             
             #----------------------HANDLE NO GO ZONE----------------------------------------------------
 
-            if (orientationFlag or proximityFlag):
+            if (orientationFlag ):
                 ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
 
 
@@ -582,6 +582,9 @@ if __name__ == '__main__':
                 ecm_T_psm3_secondaryPose = computeBoundaryPose(ecm_T_psm3_desired_Pose,points[0], points[1], points[2], points[3], points[4],psm3_T_cam, ecm_T_R, ecm_T_w, offset)
                 point2centroid = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
                 ecm_T_psm3_secondaryPose.M = point2centroid.M
+
+                if( distanceConstraint(ecm_T_psm3_secondaryPose, ecm_T_R, np.array([offset.x(),offset.y(),offset.z()]),psm3_T_cam= psm3_T_cam, df=0.08, verbose=False) ):
+                    ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
 
             
             #-----------------------FILTER DESIRED PSM3 (AUTOCAM) POSITION-------------------------------
