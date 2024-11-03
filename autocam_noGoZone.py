@@ -10,7 +10,7 @@ import pickle
 from std_msgs.msg import Bool
 import filteringUtils
 from motion.PSMmodel import PSMmanipulator
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import TransformStamped
 
 
 ## GLOBALS
@@ -455,7 +455,7 @@ if __name__ == '__main__':
     
    #configure psm kinematic model and solver 
     PSMmodel = PSMmanipulator()
-    PSMmodel.LoadRobot("dvpsm.rob") #details the DH proximal 3 most proximal joints after SUJ
+    PSMmodel.LoadRobot("motion/dvpsm.rob") #details the DH proximal 3 most proximal joints after SUJ
     PSMmodel.loadTool("PROGRASP_FORCEPS_420093")
 
     rospy.init_node('dvrk_teleop', anonymous=True)
@@ -465,7 +465,6 @@ if __name__ == '__main__':
     psm1 = dvrk.psm("PSM1")
     psm3 = dvrk.psm("PSM3")
     ecm = dvrk.ecm("ECM")
-    SUJ = dvrk.suj("SUJ")
 
     setting_arms_state(psm1)
     setting_arms_state(psm3)
@@ -474,7 +473,7 @@ if __name__ == '__main__':
     rospy.sleep(1)
  
     #subscriber to obtain the pose of the RCM of PSM3 wrt the ECM 
-    PSM3sub = rospy.Subscriber('SUJ/PSM3/local/measured_cp', data_class= PoseStamped, callback= callback, queue_size = 1, buff_size = 1000000)
+    PSM3sub = rospy.Subscriber('SUJ/PSM3/measured_cp', data_class= TransformStamped, callback= callback, queue_size = 1, buff_size = 1000000)
 
 
     ecm_pose = ecm.setpoint_cp()
@@ -601,18 +600,18 @@ if __name__ == '__main__':
         #compute PSM3 wrt PSM3rcm
         API_joints_deg = np.array(jointState)*180/np.pi
         API_joints_deg[2] = API_joints_deg[2] * np.pi/180
-        print("API Joints are " + str(np.array(API_joints_deg)))
+        # print("API Joints are " + str(np.array(API_joints_deg)))
 
         # print(ECM_T_PSM_SUJ)
         PSM3rcm_T_PSM3 = ECM_T_PSM_SUJ.Inverse() *  ecm_T_psm3_desired_Pose
-        print(PSM3rcm_T_PSM3)
-        jointState, solverError  = PSMmodel.InverseKinematics(jointState, pm.toMatrix(PSM3rcm_T_PSM3),1e-10,1000)
+        jointState, solverError  = PSMmodel.InverseKinematics(jointState, pm.toMatrix(PSM3rcm_T_PSM3),1e-12,500)
         jointLimitFlag = PSMmodel.checkJointLimits(solverError,jointState, verbose= True)
 
         cisst_joints_deg = np.array(jointState)*180/np.pi
         cisst_joints_deg[2] = cisst_joints_deg[2] * np.pi/180
-        print("Cisst/saw Joints are " + str(cisst_joints_deg))
-        print("diff = " + str(cisst_joints_deg - API_joints_deg))
+        # print("Cisst/saw Joints are " + str(cisst_joints_deg))
+        # print("diff = " + str(cisst_joints_deg - API_joints_deg))
+        print()
 
 
         # print("In No Go: " + str(inNoGo) + " BelowFloor: " + str(belowFloor) + " orientationFlag: " + str(orientationFlag) + " proximityFlag: " +str(proximityFlag) + " jointLimit = " + str(jointLimitFlag))

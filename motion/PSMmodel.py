@@ -1,9 +1,9 @@
-import dvrkKinematics
+# import dvrkKinematics
 import numpy as np
 import dvrk
 import PyKDL
 import rospy
-import arm
+from motion import arm
 import tf_conversions.posemath as pm
 from geometry_msgs.msg import PoseStamped
 import csv
@@ -11,7 +11,7 @@ import os
 import crtk
 import cisstRobotPython
 import copy
-import CmnUtil
+from motion import CmnUtil
 ### NOTE: The closed form IK appears to require the remote centre of motion for its computation. This means one must subscribe to /PSM1/local/measured_cp to obtain the PSM1 pose in the frame of the RCM
 
 base_T_PSM_SUJ = []
@@ -45,7 +45,6 @@ class PSMmanipulator(cisstRobotPython.robManipulator):
                                     [-1.0,  0.0,  0.0,  0.0],
                                     [ 0.0,  0.0,  0.0,  1.0]])
             pose =  pose @  CmnUtil.invHomogeneousNumpy(tipRotation)
-            print(pose)
         #user the inherited bindings to C++ inverse kinematic solver
         solverError = super().InverseKinematics(joints_copied, pose, errorThresh, iterations)
 
