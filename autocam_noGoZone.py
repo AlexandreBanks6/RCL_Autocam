@@ -490,7 +490,7 @@ if __name__ == '__main__':
     psm3_T_cam = pickup_transform(cam_offset)    
     ecm_T_w = ecm.setpoint_cp().Inverse()
 
-    message_rate = 0.01
+    message_rate = 0.005
 
     ## For first iteration, we need to gracefully park PSM3 at the start of our tracking...
     # Query the poses for psm1, psm3 and ecm
@@ -547,8 +547,8 @@ if __name__ == '__main__':
     #------------------------------------------------FILTERING INITIALIZATION---------------------------------------------------
     # positionFilter = filteringUtils.CircularBuffer(size=40,num_elements=3)
     # rotationFilter = filteringUtils.CircularBuffer(size=60,num_elements=4)
-    cameraPositionFilter = filteringUtils.CircularBuffer(size=110,num_elements=3)
-    cameraOrientationFiler=filteringUtils.rotationBuffer(size=10,num_elements=4)
+    cameraPositionFilter = filteringUtils.CircularBuffer(size=150,num_elements=3)
+    cameraOrientationFiler=filteringUtils.rotationBuffer(size=8,num_elements=4)
 
     ######                                                                                                                ######
     ###### -------------------------------------------AUTOCAM CONTROL LOOP------------------------------------------------######
@@ -595,26 +595,9 @@ if __name__ == '__main__':
         orientationFlag = orientationConstraint(ecm_T_psm3_desired_Pose,ecm_T_w, verbose=False)
         proximityFlag = distanceConstraint(ecm_T_psm3_desired_Pose, ecm_T_R, np.array([offset.x(),offset.y(),offset.z()]),psm3_T_cam= psm3_T_cam, df=0.08, verbose=False)
         
-        #inverse kinematics 
-        jointState = psm3.measured_js()[0]
-        #compute PSM3 wrt PSM3rcm
-        API_joints_deg = np.array(jointState)*180/np.pi
-        API_joints_deg[2] = API_joints_deg[2] * np.pi/180
-        # print("API Joints are " + str(np.array(API_joints_deg)))
+        
 
-        # print(ECM_T_PSM_SUJ)
-        PSM3rcm_T_PSM3 = ECM_T_PSM_SUJ.Inverse() *  ecm_T_psm3_desired_Pose
-        jointState, solverError  = PSMmodel.InverseKinematics(jointState, pm.toMatrix(PSM3rcm_T_PSM3),1e-12,500)
-        jointLimitFlag = PSMmodel.checkJointLimits(solverError,jointState, verbose= True)
-
-        cisst_joints_deg = np.array(jointState)*180/np.pi
-        cisst_joints_deg[2] = cisst_joints_deg[2] * np.pi/180
-        # print("Cisst/saw Joints are " + str(cisst_joints_deg))
-        # print("diff = " + str(cisst_joints_deg - API_joints_deg))
-        print()
-
-
-        # print("In No Go: " + str(inNoGo) + " BelowFloor: " + str(belowFloor) + " orientationFlag: " + str(orientationFlag) + " proximityFlag: " +str(proximityFlag) + " jointLimit = " + str(jointLimitFlag))
+        print("In No Go: " + str(inNoGo) + " BelowFloor: " + str(belowFloor) + " orientationFlag: " + str(orientationFlag) + " proximityFlag: " +str(proximityFlag), end = "\n\n")
 
 
         if (inNoGo or belowFloor or orientationFlag):
@@ -647,6 +630,18 @@ if __name__ == '__main__':
             ecm_T_psm3_secondaryPose.M  = cameraOrientationFiler.get_mean()
             #----------------------END OF FILTERING----------------------
             
+            #check if desired pose violate IK constraints
+            #inverse kinematics 
+            jointState = psm3.measured_js()[0]
+            PSM3rcm_T_PSM3 = ECM_T_PSM_SUJ.Inverse() *  ecm_T_psm3_secondaryPose
+            jointState, solverError  = PSMmodel.InverseKinematics(jointState, pm.toMatrix(PSM3rcm_T_PSM3),1e-12,500)
+            jointLimitFlag = PSMmodel.checkJointLimits(solverError,jointState, verbose= False)
+            
+            if not jointLimitFlag:
+                ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+                print("Secondary Pose IK failed ", end="\r")
+
+
             psm3.move_cp(ecm_T_psm3_secondaryPose)
             
 
@@ -665,6 +660,17 @@ if __name__ == '__main__':
             cameraOrientationFiler.append(ecm_T_psm3_desired_Pose.M)
             ecm_T_psm3_desired_Pose.M  = cameraOrientationFiler.get_mean()
             #-----------------------------END OF FILTERING -------------------------------------------------------
+
+                        #check if desired pose violate IK constraints
+            #inverse kinematics 
+            jointState = psm3.measured_js()[0]
+            PSM3rcm_T_PSM3 = ECM_T_PSM_SUJ.Inverse() *  ecm_T_psm3_desired_Pose
+            jointState, solverError  = PSMmodel.InverseKinematics(jointState, pm.toMatrix(PSM3rcm_T_PSM3),1e-12,500)
+            jointLimitFlag = PSMmodel.checkJointLimits(solverError,jointState, verbose= False)
+            
+            if not jointLimitFlag:
+                ecm_T_psm3_desired_Pose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+                print("Primary Pose IK failed ", end="\r")
 
             psm3.move_cp(ecm_T_psm3_desired_Pose)
 
