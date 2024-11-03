@@ -9,6 +9,13 @@ from numpy import linalg as LA
 import pickle
 from std_msgs.msg import Bool
 import filteringUtils
+from motion.PSMmodel import PSMmanipulator
+from geometry_msgs.msg import PoseStamped
+
+
+## GLOBALS
+
+ECM_T_PSM_SUJ = PyKDL.Frame()
 
 if sys.version_info.major < 3:
     input = raw_input
@@ -431,21 +438,44 @@ def setting_arms_state(arm):
         arm.enable()
         arm.home()
         
-# def initial_align(psm3, start_pose):
-    
+        #callback for obtaining PSM3 RCM wrt the ECM
+def callback(data):
+    # print("called")
+    global ECM_T_PSM_SUJ
+    p = PyKDL.Vector(data.transform.translation.x, data.transform.translation.y, data.transform.translation.z)
+    r = PyKDL.Rotation.Quaternion(data.transform.rotation.x, data.transform.rotation.y, data.transform.rotation.z, data.transform.rotation.w)
+    frame = PyKDL.Frame(r,p)
+    # print(frame)
+    ECM_T_PSM_SUJ = frame
+
+
 if __name__ == '__main__':
 
     print("Initializing arms...")
     
+   #configure psm kinematic model and solver 
+    PSMmodel = PSMmanipulator()
+    PSMmodel.LoadRobot("dvpsm.rob") #details the DH proximal 3 most proximal joints after SUJ
+    PSMmodel.loadTool("PROGRASP_FORCEPS_420093")
+
     rospy.init_node('dvrk_teleop', anonymous=True)
+    rospy.Rate(10000)
+
 
     psm1 = dvrk.psm("PSM1")
     psm3 = dvrk.psm("PSM3")
     ecm = dvrk.ecm("ECM")
+    SUJ = dvrk.suj("SUJ")
 
     setting_arms_state(psm1)
     setting_arms_state(psm3)
     setting_arms_state(ecm)
+    
+    rospy.sleep(1)
+ 
+    #subscriber to obtain the pose of the RCM of PSM3 wrt the ECM 
+    PSM3sub = rospy.Subscriber('SUJ/PSM3/local/measured_cp', data_class= PoseStamped, callback= callback, queue_size = 1, buff_size = 1000000)
+
 
     ecm_pose = ecm.setpoint_cp()
 
@@ -566,7 +596,26 @@ if __name__ == '__main__':
         orientationFlag = orientationConstraint(ecm_T_psm3_desired_Pose,ecm_T_w, verbose=False)
         proximityFlag = distanceConstraint(ecm_T_psm3_desired_Pose, ecm_T_R, np.array([offset.x(),offset.y(),offset.z()]),psm3_T_cam= psm3_T_cam, df=0.08, verbose=False)
         
-        print("In No Go: " + str(inNoGo) + " BelowFloor: " + str(belowFloor) + " orientationFlag: " + str(orientationFlag) + " proximityFlag: " +str(proximityFlag))
+        #inverse kinematics 
+        jointState = psm3.measured_js()[0]
+        #compute PSM3 wrt PSM3rcm
+        API_joints_deg = np.array(jointState)*180/np.pi
+        API_joints_deg[2] = API_joints_deg[2] * np.pi/180
+        print("API Joints are " + str(np.array(API_joints_deg)))
+
+        # print(ECM_T_PSM_SUJ)
+        PSM3rcm_T_PSM3 = ECM_T_PSM_SUJ.Inverse() *  ecm_T_psm3_desired_Pose
+        print(PSM3rcm_T_PSM3)
+        jointState, solverError  = PSMmodel.InverseKinematics(jointState, pm.toMatrix(PSM3rcm_T_PSM3),1e-10,1000)
+        jointLimitFlag = PSMmodel.checkJointLimits(solverError,jointState, verbose= True)
+
+        cisst_joints_deg = np.array(jointState)*180/np.pi
+        cisst_joints_deg[2] = cisst_joints_deg[2] * np.pi/180
+        print("Cisst/saw Joints are " + str(cisst_joints_deg))
+        print("diff = " + str(cisst_joints_deg - API_joints_deg))
+
+
+        # print("In No Go: " + str(inNoGo) + " BelowFloor: " + str(belowFloor) + " orientationFlag: " + str(orientationFlag) + " proximityFlag: " +str(proximityFlag) + " jointLimit = " + str(jointLimitFlag))
 
 
         if (inNoGo or belowFloor or orientationFlag):
