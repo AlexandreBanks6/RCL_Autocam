@@ -11,7 +11,7 @@ repeat_string + ["ecm_T_psm1"]+repeat_string+["ecm_T_psm3"]+repeat_string+\
 ["psm1_joints"]+["q1","q2","q3","q4","q5","q6","jaw"]+["psm3_joints"]+["q1","q2","q3","q4","q5","q6","jaw"]+\
 ["ecm_joints"]+["q1","q2","q3","q4"]
 
-csv_file_root='ParticipantData/'
+csv_file_root='dataCollection/ParticipantData/' #May need to change directory if you are running in the "dataCollection" folder
 
 class DataLogger:
     def __init__(self):
@@ -20,10 +20,11 @@ class DataLogger:
 
         #Gets user input on the subfolder name
         subfolder_name=input("Enter the subfolder name to store participant's data (e.g. Pilot01): ")
+        subfolder_name=str(subfolder_name)
         self.directory_name=self.directory_name+subfolder_name
         #Checks if the path exists, if not create it 
         if not os.path.exists(self.directory_name):
-             os.makedirs(self.directory_name)
+             os.mkdir(self.directory_name)
 
     def startCSV(self,file_name):
         #inits the csv file
@@ -53,17 +54,17 @@ class DataLogger:
 
 
          #Appending data to the list to write
-         row_to_write.extend("")
+         row_to_write.append("")
          row_to_write.extend(base_T_ecm_list)
-         row_to_write.extend("")
+         row_to_write.append("")
          row_to_write.extend(ecm_T_psm1_list)
-         row_to_write.extend("")
+         row_to_write.append("")
          row_to_write.extend(ecm_T_psm3_list)
-         row_to_write.extend("")
+         row_to_write.append("")
          row_to_write.extend(psm1_joints)
-         row_to_write.extend("")
+         row_to_write.append("")
          row_to_write.extend(psm3_joints)
-         row_to_write.extend("")
+         row_to_write.append("")
          row_to_write.extend(ecm_joints)
 
          with open(self.record_filename,'a',newline='') as file_obj:
