@@ -506,43 +506,13 @@ if __name__ == '__main__':
 
     ecm_T_psm3_desired_Pose, prev_sgn = orient_camera(psm3_T_cam, ecm_T_R, ecm_T_w, z_i, df, offset)
     
-    print("Parking PSM3 to starting position...")
 
       #load points for noGoZone
     points = load_noGoZoneCalibration()
     #set constraints on noGoZone
     floor_off = 0.04 #offset from floor of calibration
 
-    inNoGo = point_in_cube(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4], verbose= False)
-    belowFloor = point_below_floor(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4],floor_offset=floor_off, verbose= False)
-    orientationFlag = orientationConstraint(ecm_T_psm3_desired_Pose,ecm_T_w, verbose=False)
-    proximityFlag = distanceConstraint(ecm_T_psm3_desired_Pose, ecm_T_R, np.array([offset.x(),offset.y(),offset.z()]),psm3_T_cam= psm3_T_cam, df=0.08, verbose=False)
-        
-    if (inNoGo or belowFloor or orientationFlag or proximityFlag):
-        # psm3.move_cp(ecm_T_psm3_desired_Pose)
-            if (orientationFlag or proximityFlag):
-                ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
 
-
-            elif (inNoGo or belowFloor):
-                ecm_T_psm3_secondaryPose = computeBoundaryPose(ecm_T_psm3_desired_Pose,points[0], points[1], points[2], points[3], points[4],psm3_T_cam, ecm_T_R, ecm_T_w, offset)
-                point2centroid = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
-                ecm_T_psm3_secondaryPose.M = point2centroid.M
-
-            psm3.move_cp(ecm_T_psm3_secondaryPose)
-
-    else:
-        
-        point2centroid = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
-        ecm_T_psm3_desired_Pose.M = point2centroid.M
-        psm3.move_cp(ecm_T_psm3_desired_Pose)
-
-    psm3.jaw.move_jp(np.array([0.0]))
-    rospy.sleep(message_rate)
-
-
-
-    input("    Press Enter to start autonomous tracking...")
     
     #------------------------------------------------FILTERING INITIALIZATION---------------------------------------------------
     # positionFilter = filteringUtils.CircularBuffer(size=40,num_elements=3)
@@ -557,6 +527,7 @@ if __name__ == '__main__':
     psm1_positionFilter = filteringUtils.CircularBuffer(size=1,num_elements=3)
     psm1_orientationFilter = filteringUtils.rotationBuffer(size=1,num_elements=4)
 
+    initialized = False
 
     while not rospy.is_shutdown():
 
@@ -595,7 +566,7 @@ if __name__ == '__main__':
         orientationFlag = orientationConstraint(ecm_T_psm3_desired_Pose,ecm_T_w, verbose=False)
         proximityFlag = distanceConstraint(ecm_T_psm3_desired_Pose, ecm_T_R, np.array([offset.x(),offset.y(),offset.z()]),psm3_T_cam= psm3_T_cam, df=0.08, verbose=False)
         
-        
+    
 
         print("In No Go: " + str(inNoGo) + " BelowFloor: " + str(belowFloor) + " orientationFlag: " + str(orientationFlag) + " proximityFlag: " +str(proximityFlag), end = "\n\n")
 
@@ -675,7 +646,14 @@ if __name__ == '__main__':
             psm3.move_cp(ecm_T_psm3_desired_Pose)
 
 
-        psm3.jaw.move_jp(np.array([0.0]))            
+
+        psm3.jaw.move_jp(np.array([0.0])) 
+        
+        if (not initialized):
+            initialized = True
+            print("Parking PSM3 to starting position...")
+            input("    Press Enter to start autonomous tracking...")           
+
         rospy.sleep(message_rate)
 
         
