@@ -27,7 +27,6 @@ def setting_arms_state(arm):
 
 def collectNoGo(psm1):
 
-
     # psm1.move_cp(psm1_Identity_pose).wait()
     # psm3.move_cp(psm3_Identity_pose).wait()
     psm1_pose = []

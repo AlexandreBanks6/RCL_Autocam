@@ -24,6 +24,9 @@ class PSMmanipulator(cisstRobotPython.robManipulator):
         self.ERRORFAILURE = 1
         self.SafeDistanceFromRCM = 0.01
         self.tool = ""
+        #for PSM
+        self.jointsLowerBounds = [-4.7124,-0.9250, 0.00, -4.5379, -1.3963, -1.3963]
+        self.jointsUpperBounds = [ 4.7124,0.9250, 0.24,  4.5379,  1.3963,  1.3963]
 
     def loadTool(self, toolName):
         self.LoadRobot(toolName +".rob")
@@ -68,6 +71,7 @@ class PSMmanipulator(cisstRobotPython.robManipulator):
                     joints_copied[2] = minDepth
 
         return joints_copied, solverError
+    
         
     def checkJointLimits(self, solverState, q, verbose = False):
         withinLimits = True
