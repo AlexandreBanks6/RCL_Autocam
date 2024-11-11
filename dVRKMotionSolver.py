@@ -27,8 +27,11 @@ class dVRKMotionSolver:
         #Setting up the solver, more options here: https://coin-or.github.io/Ipopt/OPTIONS.html 
         #self.prog.SetSolverOption(IpoptSolver().solver_id(),"max_iter")
         self.solver_options=SolverOptions()
-        self.solver_options.SetOption(IpoptSolver().solver_id(),"max_iter",solver_iterations)
         self.solver_options.SetOption(IpoptSolver().solver_id(),"tol",solver_tolerance)
+        self.solver_options.SetOption(IpoptSolver().solver_id(),"max_iter",solver_iterations)
+        self.solver_options.SetOption(IpoptSolver().solver_id(),"acceptable_tol",1e-8)
+        #self.solver_options.SetOption(IpoptSolver().solver_id(),"mu_target",1e-1)
+
 
         self.solver=IpoptSolver()
 

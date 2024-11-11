@@ -26,19 +26,6 @@ class autocamCost():
         #Python implementation of da Vinci Kinematics 
         if kinematicsModel == "Python":
             self.psm = dvrkKinematics.dvrkKinematics()
-    
-    def testKinematics(self, q):
-        psm_c = PSMmodel.PSMmanipulator()
-        psm_c.LoadRobot("motion/dvpsm.rob") #details the DH proximal 3 most proximal joints after SUJ
-        psm_c.loadTool("PROGRASP_FORCEPS_420093")
-
-        psm_py = dvrkKinematics.dvrkKinematics()
-
-        print("py kinematics = " + str(psm_py.fk_prograsp_420093(q)))
-        print("C++ kinematics = " + str(psm_c.ForwardKinematics(q)))
-
-        
-
 
         #q = computed joints
         #q_des = desired joints
@@ -59,6 +46,20 @@ class autocamCost():
         self.similarityReg = 1.0
         self.desiredDistance = 0.01
         self.worldFrame = PyKDL.Frame() # ECM_T_W
+    
+    def testKinematics(self, q):
+        psm_c = PSMmodel.PSMmanipulator()
+        psm_c.LoadRobot("motion/dvpsm.rob") #details the DH proximal 3 most proximal joints after SUJ
+        psm_c.loadTool("PROGRASP_FORCEPS_420093")
+
+        psm_py = dvrkKinematics.dvrkKinematics()
+
+        print("py kinematics = " + str(psm_py.fk_prograsp_420093(q)))
+        print("C++ kinematics = " + str(psm_c.ForwardKinematics(q)))
+
+        
+
+
 
     #PURPOSE: updates the initial conditions to pass to the solver
     def initializeConditions(self, q_des, T_des, T_target, worldFrame, ECM_T_PSM_RCM, distanceReg = 1.0, orientationReg = 1.0, similarityReg = 1.0, desiredDistance = 0.01):
@@ -86,11 +87,11 @@ class autocamCost():
     #Computes the distance between a current pose defined by q and ECM_T_PSM_RCM and desired pose T_des and subtracts 
     #the threshold and computes the L2 norm of this
     def distanceError(self, q): 
-        return np.linalg.norm( np.linalg.norm( pm.toMatrix(self.T_target)[0:3,3] - self.ECM_T_PSM(q)[0:3,3] ) - self.desiredDistance )
+        return np.linalg.norm( pm.toMatrix(self.T_target)[0:3,3] - self.ECM_T_PSM(q)[0:3,3] ) - self.desiredDistance
 
     #computes the L2 norm between the computed and desired joint state
     def jointSimilarity(self, q):
-        return np.linalg.norm(q - self.q_des)
+        return q - self.q_des
     
     #PURPOSE: Computes the L2 angle error between the viewing vector of the camera and the vector that views the centroid 
     def centroidAngleError(self, q):
@@ -123,14 +124,14 @@ class autocamCost():
     def computeCost(self, q):
         # print("Input to Cost = ", end = "")
         # print(q)
-        distanceCost = self.distanceError(q)
-        orientationCost= self.orientationError(q)
-        similarityCost = self.jointSimilarity(q)
+        distanceCost = self.huberLoss(self.distanceError(q))
+        orientationCost= self.huberLoss(self.orientationError(q))
+        similarityCost = self.huberLoss(np.linalg.norm(self.jointSimilarity(q)))
         costTerm = self.distanceReg*distanceCost + self.orientationReg*orientationCost + self.similarityReg*similarityCost
         return costTerm
     
     def costCallback(self, q):
-        print("COST = " + str(cost.computeCost(q)))
+        print("COST = " + str(self.computeCost(q)))
 
     def computePoseError(self, q):
         T = self.ECM_T_PSM(q)
@@ -138,6 +139,20 @@ class autocamCost():
         positionError = np.linalg.norm(T[0:3,3] - pm.toMatrix(self.T_des)[0:3,3])
         print("Position Error = " +str(positionError) + "m AngleErr = " + str(angleErr))
         print("joint error = " + str(q - self.q_des))
+        print("q = " +str(q) + " q_des = " + str(self.q_des))
+
+    def huberLoss(self,err,delta=1.0):
+        #Err is error of cost term (passed to huber/L2 Norm etc.)
+
+        if np.abs(err)<=delta:
+
+            cost_term=0.5*(err**2)
+
+        else:
+
+            cost_term=delta*(np.abs(err)-0.5*delta)
+
+        return cost_term
 
 
 def callbackPoseStamp(data):

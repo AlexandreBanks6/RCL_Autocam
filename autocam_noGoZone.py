@@ -11,6 +11,8 @@ from std_msgs.msg import Bool
 import filteringUtils
 from motion.PSMmodel import PSMmanipulator
 from geometry_msgs.msg import TransformStamped
+import costComputation
+import dVRKMotionSolver
 
 
 ## GLOBALS
@@ -512,6 +514,19 @@ if __name__ == '__main__':
     #set constraints on noGoZone
     floor_off = 0.04 #offset from floor of calibration
 
+    #-----------------------------SOLVER INITIALIZATION----------------------------------
+    cost = costComputation.autocamCost(kinematicsModel="Python")
+
+
+        #initialize the solver
+    motionSolver = dVRKMotionSolver.dVRKMotionSolver(
+        cost_func = cost.computeCost,
+        constraint_lb = cost.jointsLowerBounds,
+        constraint_up = cost.jointsUpperBounds,
+        n_joints = 6, 
+        verbose = True
+    )
+    motionSolver.prog.AddVisualizationCallback(cost.costCallback, motionSolver.q)
 
     
     #------------------------------------------------FILTERING INITIALIZATION---------------------------------------------------
@@ -528,6 +543,8 @@ if __name__ == '__main__':
     psm1_orientationFilter = filteringUtils.rotationBuffer(size=1,num_elements=4)
 
     initialized = False
+
+
 
     while not rospy.is_shutdown():
 
@@ -624,8 +641,29 @@ if __name__ == '__main__':
             PSM3rcm_T_PSM3 = ECM_T_PSM_SUJ.Inverse() *  ecm_T_psm3_desired_Pose
             jointState, solverError  = PSMmodel.InverseKinematics(jointState, pm.toMatrix(PSM3rcm_T_PSM3),1e-12,500)
             jointLimitFlag = PSMmodel.checkJointLimits(solverError,jointState, verbose= True)
+            print("joint state = " +str(jointState))
             
             if not jointLimitFlag:
+
+                #compute optimization-based pose placement
+                q_des = psm3.measured_js()[0]
+                cost.initializeConditions(
+                    q_des = jointState, 
+                    T_des = ecm_T_psm3_desired_Pose, 
+                    T_target = ecm_T_R, 
+                    worldFrame= ecm_T_w,
+                    ECM_T_PSM_RCM = ECM_T_PSM_SUJ , 
+                    distanceReg = 1.0, 
+                    orientationReg = 20.0, 
+                    similarityReg = 0.0, 
+                    desiredDistance = 0.01 #meters
+                )
+                #cost.testKinematics(jointState)
+                success,q,optimal_cost = motionSolver.solve_joints(q_des)
+                cost.computePoseError(q)
+                exit()
+
+
                 ecm_T_psm3_desired_Pose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
                 print("Primary Pose IK failed ", end="\r")
 
