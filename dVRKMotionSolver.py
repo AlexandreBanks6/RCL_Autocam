@@ -37,6 +37,8 @@ class dVRKMotionSolver:
 
     def constraint_evaluator(self,q_c):
         return np.array([q_c[i] for i in range(self.n_joints)])
+    
+    
 
     def solve_joints(self,init_joints):
         #Init joints np.array() from q0 to q1

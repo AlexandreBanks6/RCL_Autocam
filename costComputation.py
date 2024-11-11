@@ -95,7 +95,7 @@ class autocamCost():
         ECM_T_PSM = self.ECM_T_PSM(q)
         c = pm.toMatrix(self.T_target)[0:3,3] - ECM_T_PSM[0:3,3]
         z = ECM_T_PSM[0:3,2]
-        return np.linalg.norm( self.angleBetweenTwoVectors(c,z))
+        return self.cosThetaBetweenTwoVectors(c,z)
     
     def perpendicularToFloorError(self, q):
         ECM_T_PSM = self.ECM_T_PSM(q)
@@ -103,7 +103,7 @@ class autocamCost():
         z_w = pm.toMatrix(self.worldFrame)[0:3,2]
         x_computed = -1 * np.cross(z_computed,z_w)/np.linalg.norm(np.cross(z_computed,z_w))
         x_desired = pm.toMatrix(self.T_des)[0:3,0]
-        return np.linalg.norm( self.angleBetweenTwoVectors(x_computed,x_desired) )
+        return self.cosThetaBetweenTwoVectors(x_computed,x_desired) 
     
     def orientationError(self,q):
         return 0.5 * (self.perpendicularToFloorError(q) + self.centroidAngleError(q))
@@ -113,6 +113,11 @@ class autocamCost():
         b = b/np.linalg.norm(b)
         return np.arccos(np.dot(a,b))
     
+    def cosThetaBetweenTwoVectors(self, a, b):
+        a = a/np.linalg.norm(a)
+        b = b/np.linalg.norm(b)
+        return 1 - np.dot(a,b)
+    
     def computeCost(self, q):
         # print("Input to Cost = ", end = "")
         # print(q)
@@ -121,6 +126,9 @@ class autocamCost():
         similarityCost = self.jointSimilarity(q)
         costTerm = self.distanceReg*distanceCost + self.orientationReg*orientationCost + self.similarityReg*similarityCost
         return costTerm
+    
+    def costCallback(self, q):
+        print("COST = " + str(cost.computeCost(q)))
 
 def callbackPoseStamp(data):
     # print("called")
@@ -200,4 +208,5 @@ if __name__ == "__main__":
         solver_iterations = 100, 
         solver_tolerance= 1e-8
     )
+    motionSolver.prog.AddVisualizationCallback(cost.costCallback, motionSolver.q)
     motionSolver.solve_joints(q)
