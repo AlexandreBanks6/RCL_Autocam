@@ -8,6 +8,8 @@ import numpy as np
 import tf_conversions.posemath as pm
 import dVRKMotionSolver
 from motion import dvrkKinematics
+from motion import CmnUtil
+
 class autocamCost():
 
     def __init__(self, kinematicsModel = "Python"):
@@ -40,8 +42,8 @@ class autocamCost():
 
         #q = computed joints
         #q_des = desired joints
-        #T_des = desired cartesion pose 
-        #T_target = target that you want the distance threshold to apply to 
+        #T_des = desired cartesian pose in frame of the ECM
+        #T_target = target that you want the distance threshold to apply to in frame of ECM
         #ECM_T_PSM_RCM = PSM's RCM in the frame of the ECM
         # xxxxxReg = regularization terms
         # desiredDistance = distance from the target 
@@ -130,6 +132,14 @@ class autocamCost():
     def costCallback(self, q):
         print("COST = " + str(cost.computeCost(q)))
 
+    def computePoseError(self, q):
+        T = self.ECM_T_PSM(q)
+        angleErr = CmnUtil.angleError(pm.toMatrix(self.T_des), T)
+        positionError = np.linalg.norm(T[0:3,3] - pm.toMatrix(self.T_des)[0:3,3])
+        print("Position Error = " +str(positionError) + "m AngleErr = " + str(angleErr))
+        print("joint error = " + str(q - self.q_des))
+
+
 def callbackPoseStamp(data):
     # print("called")
     global base_T_PSM_SUJ
@@ -209,4 +219,5 @@ if __name__ == "__main__":
         solver_tolerance= 1e-8
     )
     motionSolver.prog.AddVisualizationCallback(cost.costCallback, motionSolver.q)
-    motionSolver.solve_joints(q)
+    success,q,optimal_cost = motionSolver.solve_joints(q)
+    cost.computePoseError(q)

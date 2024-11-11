@@ -1,6 +1,7 @@
 """Shared methods, to be loaded in other code.
 """
 import numpy as np
+from scipy.spatial.transform import Rotation
 
 ESC_KEYS = [27, 1048603]
 MILLION = float(10**6)
@@ -21,6 +22,19 @@ def LPF(raw_data, fc, dt):
         else:
             filtered[i] = 2*np.pi*fc*dt*raw_data[i] + (1-2*np.pi*fc*dt)*filtered[i-1]
     return filtered
+
+
+def angleError(A,B):
+    #Gets rotation angle between two matrices
+    #Used to quantify angle error
+    RA, RB = A[:3, :3], B[:3, :3]
+
+    quatA, quatB = Rotation.from_matrix(RA).as_quat(), Rotation.from_matrix(RB).as_quat()
+
+    dot_product=np.abs(np.dot(quatA,quatB))
+    dot_product=np.clip(dot_product,-1.0,1.0)
+    angle_diff=2*np.arccos(dot_product)
+    return angle_diff
 
 
 def euler_to_quaternion(rot, unit='rad'):
