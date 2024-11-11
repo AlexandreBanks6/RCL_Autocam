@@ -7,14 +7,35 @@ from geometry_msgs.msg import TransformStamped
 import numpy as np
 import tf_conversions.posemath as pm
 import dVRKMotionSolver
-
+from motion import dvrkKinematics
 class autocamCost():
 
-    def __init__(self):
+    def __init__(self, kinematicsModel = "Python"):
         self.cost = 0
-        self.psm = PSMmodel.PSMmanipulator()
-        self.psm.LoadRobot("motion/dvpsm.rob") #details the DH proximal 3 most proximal joints after SUJ
-        self.psm.loadTool("PROGRASP_FORCEPS_420093")
+        self.kinematicsModel = kinematicsModel
+        self.jointsLowerBounds = [-4.7124,-0.9250, 0.00, -4.5379, -1.3963, -1.3963]
+        self.jointsUpperBounds = [ 4.7124,0.9250, 0.24,  4.5379,  1.3963,  1.3963]
+        #C++ binding for da Vinci Kinematics
+        if kinematicsModel == "C++":
+            self.psm = PSMmodel.PSMmanipulator()
+            self.psm.LoadRobot("motion/dvpsm.rob") #details the DH proximal 3 most proximal joints after SUJ
+            self.psm.loadTool("PROGRASP_FORCEPS_420093")
+
+        #Python implementation of da Vinci Kinematics 
+        if kinematicsModel == "Python":
+            self.psm = dvrkKinematics.dvrkKinematics()
+    
+    def testKinematics(self, q):
+        psm_c = PSMmodel.PSMmanipulator()
+        psm_c.LoadRobot("motion/dvpsm.rob") #details the DH proximal 3 most proximal joints after SUJ
+        psm_c.loadTool("PROGRASP_FORCEPS_420093")
+
+        psm_py = dvrkKinematics.dvrkKinematics()
+
+        print("py kinematics = " + str(psm_py.fk_prograsp_420093(q)))
+        print("C++ kinematics = " + str(psm_c.ForwardKinematics(q)))
+
+        
 
 
         #q = computed joints
@@ -51,7 +72,12 @@ class autocamCost():
 
     #Takes in ECM_T_PSM_RCM and the joints,q, to compute ECM_T_PSM: ECM_T_PSM_RCM * PSM_RCM_T_
     def ECM_T_PSM(self, q):
-        PSM_RCM_T_PSM = self.psm.ForwardKinematics(q)
+        if self.kinematicsModel == "C++":
+            y = np.array([x.value() for x in q], dtype=np.float64)
+            PSM_RCM_T_PSM = self.psm.ForwardKinematics(y)
+        elif self.kinematicsModel == "Python":
+            PSM_RCM_T_PSM = self.psm.fk_prograsp_420093(q)
+
         return pm.toMatrix(self.ECM_T_PSM_RCM) @ PSM_RCM_T_PSM
 
     #Assumes T is pyKDL frame
@@ -88,6 +114,8 @@ class autocamCost():
         return np.arccos(np.dot(a,b))
     
     def computeCost(self, q):
+        # print("Input to Cost = ", end = "")
+        # print(q)
         distanceCost = self.distanceError(q)
         orientationCost= self.orientationError(q)
         similarityCost = self.jointSimilarity(q)
@@ -132,11 +160,15 @@ if __name__ == "__main__":
     PSM3sub = rospy.Subscriber('SUJ/PSM3/measured_cp', data_class= TransformStamped, callback= callbackTransformStamp, queue_size = 1, buff_size = 1000000)
 
     rospy.sleep(1)
+
+
+
     q = ARM.measured_js()[0]
+    q=np.array(q.tolist(),np.float64)
 
 
     ## USING THE COST FUNCTION 
-    cost = autocamCost()
+    cost = autocamCost(kinematicsModel="Python")
     cost.initializeConditions(
         q_des = np.zeros(6), 
         T_des = PyKDL.Frame(), 
@@ -149,20 +181,23 @@ if __name__ == "__main__":
         desiredDistance = 0.01
     )
 
-    print(cost.ECM_T_PSM(q))
-    print(cost.distanceError(q))
-    print(cost.centroidAngleError(q))
-    print(cost.computeCost(q))
+    print("TEST RESULTS")
+    # print(cost.ECM_T_PSM(q))
+    # print(cost.distanceError(q))
+    # print(cost.centroidAngleError(q))
+    # print(cost.computeCost(q))
+    cost.testKinematics(q)
+    print("END OF TEST RESULTS")
 
 
     #initialize the solver
     motionSolver = dVRKMotionSolver.dVRKMotionSolver(
         cost_func = cost.computeCost,
-        constraint_lb = cost.psm.jointsLowerBounds,
-        constraint_up = cost.psm.jointsUpperBounds,
+        constraint_lb = cost.jointsLowerBounds,
+        constraint_up = cost.jointsUpperBounds,
         n_joints = 6, 
         verbose = True,
-        solver_iterations = 50, 
+        solver_iterations = 100, 
         solver_tolerance= 1e-8
     )
     motionSolver.solve_joints(q)

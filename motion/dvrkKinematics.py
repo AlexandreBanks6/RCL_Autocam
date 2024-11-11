@@ -1,6 +1,6 @@
 import numpy as np
-import CmnUtil as U
-import dvrkVariables as dvrkVar
+from motion import CmnUtil as U
+from motion import dvrkVariables as dvrkVar
 from scipy.spatial.transform import Rotation
 import time
 
@@ -97,6 +97,21 @@ class dvrkKinematics():
         T78 = dvrkKinematics.DH_transform(0, np.pi, 0, np.pi)
         T08 = T01.dot(T12).dot(T23).dot(T34).dot(T45).dot(T56).dot(T67).dot(T78)
         return T08
+    
+    @classmethod
+    def fk_prograsp_420093(cls, joints, L1=dvrkVar.L1, L2=dvrkVar.L2, L3=dvrkVar.L3, L4=dvrkVar.L4):
+        q1, q2, q3, q4, q5, q6 = np.array(joints).T
+        T01 = dvrkKinematics.DH_transform(0, np.pi / 2, 0, q1 + np.pi / 2)
+        T12 = dvrkKinematics.DH_transform(0, -np.pi / 2, 0, q2 - np.pi / 2)
+        T23 = dvrkKinematics.DH_transform(0, np.pi / 2, q3 - 0.4318, 0)
+        T34 = dvrkKinematics.DH_transform(0, 0, 0.4670, q4)
+        T45 = dvrkKinematics.DH_transform(0, -np.pi / 2, 0, q5 - np.pi / 2)
+        T56 = dvrkKinematics.DH_transform(0.0107, -np.pi / 2, 0, q6 - np.pi / 2)
+        # T67 = dvrkKinematics.DH_transform(0, -np.pi / 2, L4, 0)
+        # T78 = dvrkKinematics.DH_transform(0, np.pi, 0, np.pi)
+        # T08 = T01.dot(T12).dot(T23).dot(T34).dot(T45).dot(T56).dot(T67).dot(T78)
+        T06 = T01.dot(T12).dot(T23).dot(T34).dot(T45).dot(T56)
+        return T06
 
     @classmethod
     def ik(self, T, method='analytic'):

@@ -25,6 +25,7 @@ class dVRKMotionSolver:
         #Can also use 6 "AddBoundingBoxConstraint()" instead
 
         #Setting up the solver, more options here: https://coin-or.github.io/Ipopt/OPTIONS.html 
+        #self.prog.SetSolverOption(IpoptSolver().solver_id(),"max_iter")
         self.solver_options=SolverOptions()
         self.solver_options.SetOption(IpoptSolver().solver_id(),"max_iter",solver_iterations)
         self.solver_options.SetOption(IpoptSolver().solver_id(),"tol",solver_tolerance)
@@ -39,6 +40,8 @@ class dVRKMotionSolver:
 
     def solve_joints(self,init_joints):
         #Init joints np.array() from q0 to q1
+        # print("init joints" + str(init_joints))
+        # print("init joints type = " + str(type(init_joints)))
         result=self.solver.Solve(self.prog,init_joints,self.solver_options)
         success=result.is_success()
         q=result.GetSolution(self.q)
