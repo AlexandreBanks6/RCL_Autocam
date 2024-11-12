@@ -161,10 +161,10 @@ class autocamCost():
         #Calculates forward kinematics first to save computation time
         ECM_T_PSM=self.ECM_T_PSM(q)
 
-        distanceCost = self.huberLoss(self.distanceError(ECM_T_PSM))
-        orientationCost= self.huberLoss(self.orientationError(ECM_T_PSM)) #How far off it is normal from ring
+        distanceCost = self.huberLoss(self.distanceError(ECM_T_PSM), delta=0.03)
+        orientationCost= self.huberLoss(self.orientationError(ECM_T_PSM), delta = 0.5) #How far off it is normal from ring
         #similarityCost = self.huberLoss(np.linalg.norm(self.jointSimilarity(q)))
-        positionCost=self.huberLoss(self.positionError(ECM_T_PSM))
+        positionCost=self.huberLoss(self.positionError(ECM_T_PSM), delta = 0.03)
         #desorientationCost=self.huberLoss(self.rotationError(ECM_T_PSM))
         costTerm = self.distanceReg*distanceCost + self.orientationReg*orientationCost + self.positionReg*positionCost #+ self.similarityReg*similarityCost
         #costTerm=self.positionReg*positionCost+self.desiredOrientationReg*desorientationCost
@@ -205,6 +205,11 @@ class autocamCost():
             cost_term=delta*(np.abs(err)-0.5*delta)
 
         return cost_term
+    
+    def l2norm(self, err):
+        return np.linalg.norm(err)
+    
+    
 
 
 def callbackPoseStamp(data):

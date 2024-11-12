@@ -40,8 +40,8 @@ class solverSimulator():
             constraint_up = self.cost.jointsUpperBounds,
             n_joints = 6, 
             verbose = True,
-            solver_iterations = 60, 
-            solver_tolerance= 1e-8,
+            solver_iterations = 100, 
+            solver_tolerance= 1e-6,
             max_solver_time=20.0
             
         )
@@ -59,7 +59,7 @@ class solverSimulator():
 
     #PURPOSE: Steps the simulator by loading in a row, solving for joints, and recording the results 
     #REQUIRES: Number of samples in the dataset
-    def stepSimulator(self, id, distanceRegArg= 1.0, orientationRegArg= 1.0, similarityRegArg= 1.0, positionRegArg= 1.0, verbose = True): 
+    def stepSimulator(self, id, distanceRegArg= 1.0, orientationRegArg= 1.0, similarityRegArg= 1.0, positionRegArg= 1.0, desOrientationArg=1.0,verbose = True): 
 
         #READ IN ROW FROM DATA LOADER AND POPULATE SIMULATION
         i = 0
@@ -87,7 +87,7 @@ class solverSimulator():
                     orientationReg = orientationRegArg, 
                     similarityReg = similarityRegArg, 
                     positionReg= positionRegArg,
-                    desOrientationReg=1.0, #not in use
+                    desOrientationReg=desOrientationArg, #not in use
                     desiredDistance = 0.01
                 )
 
@@ -158,12 +158,12 @@ class solverSimulator():
         return mean_value, std_dev
     
     #PURPOSE: Runs an experiment over all of the data for a given set of regularization terms
-    def run_experiment(self, distanceReg, orientationReg, similarityReg, positionReg):
+    def run_experiment(self, distanceReg, orientationReg, similarityReg, positionReg,desOrientationReg):
 
         #insert loop that iterates
 
 
-        self.stepSimulator(id= 0, distanceRegArg=distanceReg, orientationRegArg=orientationReg, similarityRegArg=similarityReg, positionRegArg=positionReg)
+        self.stepSimulator(id= 0, distanceRegArg=distanceReg, orientationRegArg=orientationReg, similarityRegArg=similarityReg, positionRegArg=positionReg,desOrientationArg=desOrientationReg)
 
         #after loop
         self.evaluatePerformance()
@@ -203,7 +203,7 @@ if __name__ == "__main__":
     simulator = solverSimulator(filename)
     
 
-    simulator.run_experiment(distanceReg=10.0, orientationReg=25.0, similarityReg=1.0, positionReg=20.0)
+    simulator.run_experiment(distanceReg=10.0, orientationReg=25.0, similarityReg=1.0, positionReg=20.0,desOrientationReg=2000.0)
 
 
 
