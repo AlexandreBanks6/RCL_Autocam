@@ -41,14 +41,14 @@ class solverSimulator():
             n_joints = 6, 
             verbose = True,
             solver_iterations = 100, 
-            solver_tolerance= 1e-6,
-            max_solver_time=20.0
+            solver_tolerance= 1e-8,
+            max_solver_time=0.010
             
         )
         # self.motionSolver.prog.AddVisualizationCallback(self.cost.costCallback, self.motionSolver.q)
 
-        self.results = {"id": [], "angleError":[], "positionError":[], "optimalCost":[], "success":[], "completionTime":[]}
-        self.results_desiredPose = {"id": [], "angleError":[], "positionError":[], "optimalCost":[], "success":[], "completionTime":[]}
+        self.results = {"id": [], "angleError":[], "positionError":[], "optimalCost":[], "success":[], "completionTime":[], "centroidViewAngle": [], "perpendicularAngle":[]}
+        self.results_desiredPose = {"id": [], "angleError":[], "positionError":[], "optimalCost":[], "success":[], "completionTime":[], "centroidViewAngle": [], "perpendicularAngle":[]}
 
 
         self.experiment = [] #contains all of the experiment parameters and overall results
@@ -99,7 +99,9 @@ class solverSimulator():
 
                 #compute error
                 angleError, positionError = self.cost.computeArbitraryPoseError(q= q, T_1= ECM_T_PSM3)
-
+                centroidViewAngle = np.rad2deg(np.arccos(-1 * (self.cost.centroidAngleError(self.cost.ECM_T_PSM(q)) - 1) ))
+                perpendicularAngle = np.rad2deg(np.arccos(self.cost.perpendicularToFloorError(self.cost.ECM_T_PSM(q))))
+                
                 #save the results
                 self.results["success"].append(success)
                 self.results["id"].append(0)
@@ -107,6 +109,9 @@ class solverSimulator():
                 self.results["positionError"].append(positionError)
                 self.results["completionTime"].append(execution_time)
                 self.results["optimalCost"].append(optimal_cost)
+                self.results["centroidViewAngle"].append(centroidViewAngle)
+                self.results["perpendicularAngle"].append(perpendicularAngle)
+                
 
                 angleError, positionError = self.cost.computeArbitraryPoseError(q= q, T_1= T_des)
                 self.results_desiredPose["success"].append(success)
@@ -115,10 +120,14 @@ class solverSimulator():
                 self.results_desiredPose["positionError"].append(positionError)
                 self.results_desiredPose["completionTime"].append(execution_time)
                 self.results_desiredPose["optimalCost"].append(optimal_cost)
+                self.results_desiredPose["centroidViewAngle"].append(centroidViewAngle)
+                self.results_desiredPose["perpendicularAngle"].append(perpendicularAngle)
+
+
 
 
                 if verbose:
-                    print("Iter: " + str(id) + " Success: " + str(success) + " posErr: " + str(positionError) + " angErr: " + str(angleError) + " time: " + str(execution_time))
+                    print("Iter: " + str(id) + " Success: " + str(success) + " posErr: " + str(positionError) + " angErr: " + str(angleError) + " time: " + str(execution_time) + " centroidAng: " + str(centroidViewAngle) + "perpAngle: " +str(perpendicularAngle))
             i += 1
 
     #PURPOSE: Evaluates mean performance of the solver after a number of trials are completed

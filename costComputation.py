@@ -115,7 +115,7 @@ class autocamCost():
     def centroidAngleError(self, ECM_T_PSM):
         c = self.T_target[0:3,3] - ( (ECM_T_PSM @ self.psm3_T_cam)[0:3,3] + self.offset ) 
         z = ECM_T_PSM[0:3,2]
-        return self.cosThetaMinusBetweenTwoVectors(c,z)
+        return 2*self.cosThetaMinusBetweenTwoVectors(c,z)
     
     def perpendicularToFloorError(self, ECM_T_PSM):
         x_computed = ECM_T_PSM[0:3,0]
