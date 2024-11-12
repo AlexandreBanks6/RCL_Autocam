@@ -86,7 +86,7 @@ class OptimizationDataLogger:
         
         
         with open(self.record_filename,'a',newline='') as file_object:
-            writer_object=csv.writer(file_objeextendct)
+            writer_object=csv.writer(file_object)
             writer_object.writerow(row_to_write)
             file_object.close()
 
@@ -106,11 +106,18 @@ class OptimizationDataLogger:
             self.record_filename=ROOT_PATH+'/Data_'+str(file_count-1)+'.csv'
         #Initializes the counter to index the rows:
         self.read_row_count=0
-        self.total_rows = sum(1 for row in open(self.record_filename)) - 1
+        # self.total_rows = sum(1 for row in open(self.record_filename)) - 1
+        
+        self.csv_obj=pd.read_csv(self.record_filename)
+        self.ik_indices=self.csv_obj.index[self.csv_obj['IK Trigered']==True].to_list() #Used to find which indices are only when IK is triggered
+        self.total_rows=self.csv_obj.shape[0]
 
-    def readDataRow(self):
-        self.read_row_count+=1
-        if self.read_row_count>=self.total_rows:
+    def readDataRow(self,row_index=None):
+        if row_index is None:
+            self.read_row_count+=1
+            row_index=self.read_row_count
+
+        if row_index>=self.total_rows:
             #Reached end of the row
             success=False
             system_time=None
@@ -125,8 +132,9 @@ class OptimizationDataLogger:
             ECM_T_PSM3=None
         else:
             success=True
-            data_row=pd.read_csv(self.record_filename,skiprows=self.read_row_count)
-            data_list=data_row.iloc[0].to_list()
+            #data_row=pd.read_csv(self.record_filename,skiprows=row_index)
+            #data_list=data_row.iloc[0].to_list()
+            data_list=self.csv_obj.iloc[row_index].to_list()
 
             #Returns the data as a list such that:
             '''
@@ -147,7 +155,7 @@ class OptimizationDataLogger:
             psm3_T_cam=data_list[61:73]
             offset=data_list[74:77]
             IK_Triggered=data_list[77]
-            ECM_T_PSM3=data_list[78:90]
+            ECM_T_PSM3=data_list[79:91]
 
 
             q_des=np.array(q_des,dtype=np.float64)
@@ -158,6 +166,16 @@ class OptimizationDataLogger:
             psm3_T_cam=self.ConvertDataRow_ToNPFrame(psm3_T_cam)
             offset=np.array(offset,dtype=np.float64)   
             ECM_T_PSM3=self.ConvertDataRow_ToNPFrame(ECM_T_PSM3)
+
+        # print("q_des: "+str(q_des))
+        # print("T_des: "+str(T_des))
+        # print("T_target: "+str(T_target))
+        # print("worldFrame: "+str(worldFrame))
+        # print("ECM_T_PSM_RCM: "+str(ECM_T_PSM_RCM))
+        # print("psm3_T_cam: "+str(psm3_T_cam))
+        # print("offset: "+str(offset))
+        # print("ECM_T_PSM3: "+str(ECM_T_PSM3))
+        # print("IK Triggered: "+str(IK_Triggered))
 
         return success,system_time,q_des,T_des,T_target,worldFrame,ECM_T_PSM_RCM,psm3_T_cam,offset,IK_Triggered,ECM_T_PSM3
         
@@ -179,10 +197,11 @@ class OptimizationDataLogger:
     
 
     def ConvertDataRow_ToNPFrame(self,data_list):
-        transform=np.array([data_list[3],data_list[4],data_list[5],data_list[0]],
+        transform=np.array([[data_list[3],data_list[4],data_list[5],data_list[0]],
                            [data_list[6],data_list[7],data_list[8],data_list[1]],
                            [data_list[9],data_list[10],data_list[11],data_list[2]],
-                           [0,0,0,1],dtype=np.float64)
+                           [0,0,0,1]],dtype=np.float64)
+
         return transform
         
 

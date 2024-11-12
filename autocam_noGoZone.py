@@ -678,7 +678,7 @@ if __name__ == '__main__':
 
                 # else:
 
-                data_row=[np.array(jointState),pm.toMatrix(ecm_T_psm3_secondaryPose),pm.toMatrix(ecm_T_R),\
+                data_row=[np.array(q_curr),pm.toMatrix(ecm_T_psm3_secondaryPose),pm.toMatrix(ecm_T_R),\
                           pm.toMatrix(ecm_T_w),pm.toMatrix(ECM_T_PSM_SUJ),pm.toMatrix(psm3_T_cam),np.array([offset.x(), offset.y(), offset.z()]),\
                             not jointLimitFlag,psm3_pose]
                 datalogger.writeRow(data_row)
@@ -690,7 +690,7 @@ if __name__ == '__main__':
                 print("Secondary Pose IK failed ", end="\r")
 
             if not written_row:
-                data_row=[np.array(jointState),pm.toMatrix(ecm_T_psm3_secondaryPose),pm.toMatrix(ecm_T_R),\
+                data_row=[np.array(q_curr),pm.toMatrix(ecm_T_psm3_secondaryPose),pm.toMatrix(ecm_T_R),\
                           pm.toMatrix(ecm_T_w),pm.toMatrix(ECM_T_PSM_SUJ),pm.toMatrix(psm3_T_cam),np.array([offset.x(), offset.y(), offset.z()]),\
                             not jointLimitFlag,psm3_pose]
                 datalogger.writeRow(data_row)
@@ -740,7 +740,7 @@ if __name__ == '__main__':
                 #print("Solver succes: " + str(success))
 
                 #Writing row
-                data_row=[np.array(jointState),pm.toMatrix(ecm_T_psm3_desired_Pose),pm.toMatrix(ecm_T_R),\
+                data_row=[np.array(q_curr),pm.toMatrix(ecm_T_psm3_desired_Pose),pm.toMatrix(ecm_T_R),\
                           pm.toMatrix(ecm_T_w),pm.toMatrix(ECM_T_PSM_SUJ),pm.toMatrix(psm3_T_cam),np.array([offset.x(), offset.y(), offset.z()]),\
                             not jointLimitFlag,psm3_pose]
                 datalogger.writeRow(data_row)
@@ -761,7 +761,7 @@ if __name__ == '__main__':
                 
                 print("Primary Pose IK failed ", end="\r")
             if not written_row:
-                data_row=[np.array(jointState),pm.toMatrix(ecm_T_psm3_desired_Pose),pm.toMatrix(ecm_T_R),\
+                data_row=[np.array(q_curr),pm.toMatrix(ecm_T_psm3_desired_Pose),pm.toMatrix(ecm_T_R),\
                           pm.toMatrix(ecm_T_w),pm.toMatrix(ECM_T_PSM_SUJ),pm.toMatrix(psm3_T_cam),np.array([offset.x(), offset.y(), offset.z()]),\
                             not jointLimitFlag,psm3_pose]
                 datalogger.writeRow(data_row)

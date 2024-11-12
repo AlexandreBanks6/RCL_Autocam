@@ -21,11 +21,16 @@ class solverSimulator():
             T_des = PyKDL.Frame(), 
             T_target = PyKDL.Frame(), 
             worldFrame= PyKDL.Frame(),
-            ECM_T_PSM_RCM = ECM_T_PSM_SUJ, 
+            ECM_T_PSM_RCM = PyKDL.Frame(), 
+            psm3_T_cam= PyKDL.Frame(),
             distanceReg = 1.0, 
             orientationReg = 1.0, 
             similarityReg = 1.0, 
-            desiredDistance = 0.01
+            positionReg= 1.0,
+            desOrientationReg=1.0, #not in use
+            desiredDistance = 0.01,
+            offset=[0.0,0.0,0.0]
+
         )
 
         #initialize motion solver 
@@ -35,14 +40,16 @@ class solverSimulator():
             constraint_up = self.cost.jointsUpperBounds,
             n_joints = 6, 
             verbose = True,
-            solver_iterations = 100, 
+            solver_iterations = 60, 
             solver_tolerance= 1e-8,
-            max_solver_time=0.010
+            max_solver_time=20.0
             
         )
-        self.motionSolver.prog.AddVisualizationCallback(self.cost.costCallback, self.motionSolver.q)
+        # self.motionSolver.prog.AddVisualizationCallback(self.cost.costCallback, self.motionSolver.q)
 
         self.results = {"id": [], "angleError":[], "positionError":[], "optimalCost":[], "success":[], "completionTime":[]}
+        self.results_desiredPose = {"id": [], "angleError":[], "positionError":[], "optimalCost":[], "success":[], "completionTime":[]}
+
 
         self.experiment = [] #contains all of the experiment parameters and overall results
 
@@ -55,12 +62,18 @@ class solverSimulator():
     def stepSimulator(self, id, distanceRegArg= 1.0, orientationRegArg= 1.0, similarityRegArg= 1.0, positionRegArg= 1.0, verbose = True): 
 
         #READ IN ROW FROM DATA LOADER AND POPULATE SIMULATION
+        i = 0
+        print(str(len(self.loader.ik_indices)) + " number of IK indices" )
+        time.sleep(5)
         while(1):
-            success, system_time,q_des,T_des,T_target,worldFrame,ECM_T_PSM_RCM,psm3_T_cam,offset,IK_Triggered,ECM_T_PSM3 = self.loader.readDataRow()
+            print(i)
+            if i > len(self.loader.ik_indices) - 1:
+                break 
+            success, system_time,q_des,T_des,T_target,worldFrame,ECM_T_PSM_RCM,psm3_T_cam,offset,IK_Triggered,ECM_T_PSM3 = self.loader.readDataRow(self.loader.ik_indices[i])
             if success == False:
                 break
             
-            if IK_Triggered:
+            if  IK_Triggered:
                 #initiliaze solver with the row parameters
                 self.cost.initializeConditions(
                     q_des = q_des, 
@@ -80,7 +93,7 @@ class solverSimulator():
 
                 #run solver
                 start_time = time.time()
-                success,q,optimal_cost = self.motionSolver.solve_joints(q)
+                success,q,optimal_cost = self.motionSolver.solve_joints(q_des)
                 end_time = time.time()
                 execution_time = end_time - start_time
 
@@ -95,8 +108,18 @@ class solverSimulator():
                 self.results["completionTime"].append(execution_time)
                 self.results["optimalCost"].append(optimal_cost)
 
+                angleError, positionError = self.cost.computeArbitraryPoseError(q= q, T_1= T_des)
+                self.results_desiredPose["success"].append(success)
+                self.results_desiredPose["id"].append(0)
+                self.results_desiredPose["angleError"].append(angleError)
+                self.results_desiredPose["positionError"].append(positionError)
+                self.results_desiredPose["completionTime"].append(execution_time)
+                self.results_desiredPose["optimalCost"].append(optimal_cost)
+
+
                 if verbose:
-                    print("Iter: " + str(id) + " Success: " + str(success) + " posErr: " + str(positionError) + " angErr: " + str(angleError) + "time: " + str(execution_time))
+                    print("Iter: " + str(id) + " Success: " + str(success) + " posErr: " + str(positionError) + " angErr: " + str(angleError) + " time: " + str(execution_time))
+            i += 1
 
     #PURPOSE: Evaluates mean performance of the solver after a number of trials are completed
     def evaluatePerformance(self):
@@ -112,7 +135,22 @@ class solverSimulator():
         print("mean: ", end="")
         print(performance_mean)
         print("std: ", end="")
-        print(performance_std)    
+        print(performance_std)
+
+
+        performance_mean = {}
+        performance_std = {}
+        for key in self.results_desiredPose:
+            mean, std = self.computeStatistics(self.results_desiredPose[key])
+            performance_mean[key] = mean
+            performance_std[key] = std
+
+
+        print("Simulation Performance desiredPose: ")
+        print("mean: ", end="")
+        print(performance_mean)
+        print("std: ", end="")
+        print(performance_std)     
 
     def computeStatistics(self, data):
         mean_value = np.mean(data)
@@ -120,7 +158,7 @@ class solverSimulator():
         return mean_value, std_dev
     
     #PURPOSE: Runs an experiment over all of the data for a given set of regularization terms
-    def run_experiment(self, filename, distanceReg, orientationReg, similarityReg, positionReg):
+    def run_experiment(self, distanceReg, orientationReg, similarityReg, positionReg):
 
         #insert loop that iterates
 
@@ -161,13 +199,12 @@ GOALS:
 """
 
 if __name__ == "__main__":
-    filename = ""
+    filename = "Data_9"
     simulator = solverSimulator(filename)
     
 
-    simulator.run_experiment(distanceReg=1.0, orientationReg=1.0, similarityReg=1.0, positionReg=1.0)
+    simulator.run_experiment(distanceReg=10.0, orientationReg=25.0, similarityReg=1.0, positionReg=20.0)
 
-    #initialize any data loading script 
 
 
 

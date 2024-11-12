@@ -186,7 +186,7 @@ class autocamCost():
     #PURPOSE: compute position and orientation error between two homogenous transforms
     def computeArbitraryPoseError(self,q,T_1):
         T = self.ECM_T_PSM(q)
-        T_1 = pm.toMatrix(T_1)
+        # T_1 = pm.toMatrix(T_1)
         #print("Estimated Pose: "+str(T))
         angleErr = np.rad2deg(CmnUtil.angleError(T_1, T))
         positionError = np.linalg.norm(T[0:3,3] - T_1[0:3,3])
