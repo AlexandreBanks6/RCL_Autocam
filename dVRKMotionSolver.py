@@ -4,9 +4,10 @@ import numpy as np
 
 
 class dVRKMotionSolver:
-    def __init__(self,cost_func,constraint_lb,constraint_up,n_joints=6,verbose=False,solver_iterations=50,solver_tolerance=1e-8):
+    def __init__(self,cost_func,constraint_lb,constraint_up,n_joints=6,verbose=False,solver_iterations=500,solver_tolerance=1e-8,max_solver_time=0.5):
         #cost_func of format cost_func(q), constraint_lb and constraint_up are the 
         #lower bound and uppwer bound box constraints, each np.array()'s of length n_joints
+        #max_solver_time is in seconds
         
         #Initializes the program
         self.n_joints=n_joints
@@ -29,7 +30,8 @@ class dVRKMotionSolver:
         self.solver_options=SolverOptions()
         self.solver_options.SetOption(IpoptSolver().solver_id(),"tol",solver_tolerance)
         self.solver_options.SetOption(IpoptSolver().solver_id(),"max_iter",solver_iterations)
-        self.solver_options.SetOption(IpoptSolver().solver_id(),"acceptable_tol",1e-8)
+        self.solver_options.SetOption(IpoptSolver().solver_id(),"acceptable_tol",solver_tolerance)
+        self.solver_options.SetOption(IpoptSolver().solver_id(),"max_cpu_time",max_solver_time)
         #self.solver_options.SetOption(IpoptSolver().solver_id(),"mu_target",1e-1)
 
 

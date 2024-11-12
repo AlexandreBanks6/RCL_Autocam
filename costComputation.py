@@ -15,6 +15,7 @@ class autocamCost():
     def __init__(self, kinematicsModel = "Python"):
         self.cost = 0
         self.kinematicsModel = kinematicsModel
+        self.offset = np.zeros(3)
         self.jointsLowerBounds = [-4.7124,-0.9250, 0.00, -4.5379, -1.3963, -1.3963]
         self.jointsUpperBounds = [ 4.7124,0.9250, 0.24,  4.5379,  1.3963,  1.3963]
         #C++ binding for da Vinci Kinematics
@@ -28,23 +29,26 @@ class autocamCost():
             self.psm = dvrkKinematics.dvrkKinematics()
 
         #q = computed joints
-        #q_des = desired joints
+        #q_des = desired joints (what is returned by IK)
         #T_des = desired cartesian pose in frame of the ECM
         #T_target = target that you want the distance threshold to apply to in frame of ECM
         #ECM_T_PSM_RCM = PSM's RCM in the frame of the ECM
-        # xxxxxReg = regularization terms
+        # xxxxxReg = regularization terms (weights)
         # desiredDistance = distance from the target 
         # worldFrame = ECM_T_W
+        # offset = transform between psm1 and psm3 to get to PSM1 coordinate system, take PSM3 from measure_cp and add offset
 
-        #variables for states 
+        #Initialize variables for states 
         self.q_des = np.zeros(6)
         self.T_des = PyKDL.Frame()
         self.T_target = PyKDL.Frame()
         self.ECM_T_PSM_RCM = PyKDL.Frame()
+        self.offset = np.zeros(3)
         self.distanceReg = 1.0
         self.orientationReg = 1.0
         self.similarityReg = 1.0
         self.desiredDistance = 0.01
+        self.psm3_T_cam = PyKDL.Frame()
         self.worldFrame = PyKDL.Frame() # ECM_T_W
     
     def testKinematics(self, q):
@@ -62,14 +66,20 @@ class autocamCost():
 
 
     #PURPOSE: updates the initial conditions to pass to the solver
-    def initializeConditions(self, q_des, T_des, T_target, worldFrame, ECM_T_PSM_RCM, distanceReg = 1.0, orientationReg = 1.0, similarityReg = 1.0, desiredDistance = 0.01):
+    def initializeConditions(self, q_des, T_des, T_target, worldFrame, offset, ECM_T_PSM_RCM, psm3_T_cam, distanceReg = 1.0, orientationReg = 1.0, similarityReg = 1.0, positionReg=1.0,desOrientationReg=1.0,desiredDistance = 0.01):
+        #All Frames are numpy arrays
+        
         self.q_des = q_des
         self.T_des = T_des
         self.T_target = T_target
         self.ECM_T_PSM_RCM = ECM_T_PSM_RCM
+        self.psm3_T_cam = psm3_T_cam
+        self.offset = offset
         self.distanceReg = distanceReg
         self.orientationReg = orientationReg
         self.similarityReg = similarityReg
+        self.positionReg=positionReg
+        self.desiredOrientationReg=desOrientationReg
         self.desiredDistance = desiredDistance
         self.worldFrame = worldFrame
 
@@ -80,54 +90,84 @@ class autocamCost():
             PSM_RCM_T_PSM = self.psm.ForwardKinematics(y)
         elif self.kinematicsModel == "Python":
             PSM_RCM_T_PSM = self.psm.fk_prograsp_420093(q)
+        return self.ECM_T_PSM_RCM @ PSM_RCM_T_PSM
+    
+    def compareKinematics(self, dVmeasured_cp, q):
+        np_measured_cp=pm.toMatrix(dVmeasured_cp)
+        ECM_T_PSM=self.ECM_T_PSM(q)
+        print("measuredCp = " + str(np_measured_cp) +"\n ECM_T_PSM = " + str(ECM_T_PSM) )
+        angleErr = np.rad2deg(CmnUtil.angleError(ECM_T_PSM, np_measured_cp))
+        positionError = np.linalg.norm(ECM_T_PSM[0:3,3] - np_measured_cp[0:3,3])
+        print("Angle Error= "+str(angleErr)+" Position error= "+str(positionError))
 
-        return pm.toMatrix(self.ECM_T_PSM_RCM) @ PSM_RCM_T_PSM
 
     #Assumes T is pyKDL frame
     #Computes the distance between a current pose defined by q and ECM_T_PSM_RCM and desired pose T_des and subtracts 
     #the threshold and computes the L2 norm of this
-    def distanceError(self, q): 
-        return np.linalg.norm( pm.toMatrix(self.T_target)[0:3,3] - self.ECM_T_PSM(q)[0:3,3] ) - self.desiredDistance
+    def distanceError(self, ECM_T_PSM): #Shouldn't there be a norm around this outer one?##############################
+        return np.linalg.norm(np.linalg.norm(self.T_target[0:3,3]  - ( (ECM_T_PSM @ self.psm3_T_cam)[0:3,3] + self.offset ) ) - self.desiredDistance )
 
     #computes the L2 norm between the computed and desired joint state
     def jointSimilarity(self, q):
         return q - self.q_des
     
     #PURPOSE: Computes the L2 angle error between the viewing vector of the camera and the vector that views the centroid 
-    def centroidAngleError(self, q):
-        ECM_T_PSM = self.ECM_T_PSM(q)
-        c = pm.toMatrix(self.T_target)[0:3,3] - ECM_T_PSM[0:3,3]
+    def centroidAngleError(self, ECM_T_PSM):
+        c = self.T_target[0:3,3] - ( (ECM_T_PSM @ self.psm3_T_cam)[0:3,3] + self.offset ) 
         z = ECM_T_PSM[0:3,2]
-        return self.cosThetaBetweenTwoVectors(c,z)
+        return self.cosThetaMinusBetweenTwoVectors(c,z)
     
-    def perpendicularToFloorError(self, q):
-        ECM_T_PSM = self.ECM_T_PSM(q)
-        z_computed = ECM_T_PSM[0:3,2]
-        z_w = pm.toMatrix(self.worldFrame)[0:3,2]
-        x_computed = -1 * np.cross(z_computed,z_w)/np.linalg.norm(np.cross(z_computed,z_w))
-        x_desired = pm.toMatrix(self.T_des)[0:3,0]
-        return self.cosThetaBetweenTwoVectors(x_computed,x_desired) 
+    def perpendicularToFloorError(self, ECM_T_PSM):
+        x_computed = ECM_T_PSM[0:3,0]
+        z_w =self.worldFrame[0:3,2]
+        return np.abs(self.cosThetaBetweenTwoVectors(x_computed,z_w))
     
-    def orientationError(self,q):
-        return 0.5 * (self.perpendicularToFloorError(q) + self.centroidAngleError(q))
+    def orientationError(self,ECM_T_PSM):
+        return 0.5 * (self.perpendicularToFloorError(ECM_T_PSM) + self.centroidAngleError(ECM_T_PSM))
+    
+    def positionError(self,ECM_T_PSM):
+        #Takes in ECM_T_PSM pose and computes pose error from desired pose
+        #Translation similarity
+        t_new,t_des=ECM_T_PSM[:3,3],self.T_des[:3,3]
+        trans_error=np.linalg.norm(t_new-t_des)
+        return trans_error
+    
+    def rotationError(self,ECM_T_PSM):
+        RA, RB = ECM_T_PSM[:3, :3], self.T_des[:3, :3]
+        rotation_diff=np.transpose(RA)@RB
+        angle_error=np.linalg.norm(rotation_diff)
+        return angle_error
         
     def angleBetweenTwoVectors(self, a, b):
         a = a/np.linalg.norm(a)
         b = b/np.linalg.norm(b)
         return np.arccos(np.dot(a,b))
     
+    def cosThetaMinusBetweenTwoVectors(self, a, b):
+        # a = a/np.linalg.norm(a)
+        # b = b/np.linalg.norm(b)
+        # return 1 - np.dot(a,b)
+        cos_similarity=np.dot(a,b)/(np.linalg.norm(a)*np.linalg.norm(b))
+        return 1-cos_similarity
+    
     def cosThetaBetweenTwoVectors(self, a, b):
-        a = a/np.linalg.norm(a)
-        b = b/np.linalg.norm(b)
-        return 1 - np.dot(a,b)
+        return np.dot(a,b)/(np.linalg.norm(a)*np.linalg.norm(b))
+
     
     def computeCost(self, q):
         # print("Input to Cost = ", end = "")
         # print(q)
-        distanceCost = self.huberLoss(self.distanceError(q))
-        orientationCost= self.huberLoss(self.orientationError(q))
-        similarityCost = self.huberLoss(np.linalg.norm(self.jointSimilarity(q)))
-        costTerm = self.distanceReg*distanceCost + self.orientationReg*orientationCost + self.similarityReg*similarityCost
+        
+        #Calculates forward kinematics first to save computation time
+        ECM_T_PSM=self.ECM_T_PSM(q)
+
+        distanceCost = self.huberLoss(self.distanceError(ECM_T_PSM))
+        orientationCost= self.huberLoss(self.orientationError(ECM_T_PSM)) #How far off it is normal from ring
+        #similarityCost = self.huberLoss(np.linalg.norm(self.jointSimilarity(q)))
+        positionCost=self.huberLoss(self.positionError(ECM_T_PSM))
+        #desorientationCost=self.huberLoss(self.rotationError(ECM_T_PSM))
+        costTerm = self.distanceReg*distanceCost + self.orientationReg*orientationCost + self.positionReg*positionCost #+ self.similarityReg*similarityCost
+        #costTerm=self.positionReg*positionCost+self.desiredOrientationReg*desorientationCost
         return costTerm
     
     def costCallback(self, q):
@@ -135,11 +175,21 @@ class autocamCost():
 
     def computePoseError(self, q):
         T = self.ECM_T_PSM(q)
-        angleErr = CmnUtil.angleError(pm.toMatrix(self.T_des), T)
-        positionError = np.linalg.norm(T[0:3,3] - pm.toMatrix(self.T_des)[0:3,3])
-        print("Position Error = " +str(positionError) + "m AngleErr = " + str(angleErr))
-        print("joint error = " + str(q - self.q_des))
-        print("q = " +str(q) + " q_des = " + str(self.q_des))
+        #print("Estimated Pose: "+str(T))
+        angleErr = np.rad2deg(CmnUtil.angleError(self.T_des, T))
+        positionError = np.linalg.norm(T[0:3,3] - self.T_des[0:3,3])
+        print("Position Error = " +str(positionError) + " m AngleErr = " + str(angleErr)+" deg")
+        #print("joint error = " + str(q - self.q_des))
+        #print("q = " +str(q) + " q_des = " + str(self.q_des))
+
+    #PURPOSE: compute position and orientation error between two homogenous transforms
+    def computeArbitraryPoseError(self,q,T_1):
+        T = self.ECM_T_PSM(q)
+        T_1 = pm.toMatrix(T_1)
+        #print("Estimated Pose: "+str(T))
+        angleErr = np.rad2deg(CmnUtil.angleError(T_1, T))
+        positionError = np.linalg.norm(T[0:3,3] - T_1[0:3,3])
+        print("Position Error = " +str(positionError) + " m AngleErr = " + str(angleErr)+" deg")
 
     def huberLoss(self,err,delta=1.0):
         #Err is error of cost term (passed to huber/L2 Norm etc.)
@@ -219,7 +269,12 @@ if __name__ == "__main__":
     # print(cost.distanceError(q))
     # print(cost.centroidAngleError(q))
     # print(cost.computeCost(q))
+    cost.compareKinematics(q = q, dVmeasured_cp=ARM.measured_cp())
+
+    exit()
     cost.testKinematics(q)
+
+
     print("END OF TEST RESULTS")
 
 

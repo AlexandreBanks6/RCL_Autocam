@@ -107,11 +107,12 @@ class dvrkKinematics():
         T34 = dvrkKinematics.DH_transform(0, 0, 0.4670, q4)
         T45 = dvrkKinematics.DH_transform(0, -np.pi / 2, 0, q5 - np.pi / 2)
         T56 = dvrkKinematics.DH_transform(0.0107, -np.pi / 2, 0, q6 - np.pi / 2)
-        # T67 = dvrkKinematics.DH_transform(0, -np.pi / 2, L4, 0)
-        # T78 = dvrkKinematics.DH_transform(0, np.pi, 0, np.pi)
-        # T08 = T01.dot(T12).dot(T23).dot(T34).dot(T45).dot(T56).dot(T67).dot(T78)
-        T06 = T01.dot(T12).dot(T23).dot(T34).dot(T45).dot(T56)
-        return T06
+        T67 = np.array([[ 0.0, -1.0,  0.0,  0.0],
+                        [ 0.0,  0.0,  1.0,  0.0],
+                        [-1.0,  0.0,  0.0,  0.0],
+                        [ 0.0,  0.0,  0.0,  1.0]]) #TIP ROTATION
+        T07 = T01.dot(T12).dot(T23).dot(T34).dot(T45).dot(T56).dot(T67)
+        return T07
 
     @classmethod
     def ik(self, T, method='analytic'):
