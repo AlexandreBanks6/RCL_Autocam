@@ -86,7 +86,7 @@ class OptimizationDataLogger:
         
         
         with open(self.record_filename,'a',newline='') as file_object:
-            writer_object=csv.writer(file_object)
+            writer_object=csv.writer(file_objeextendct)
             writer_object.writerow(row_to_write)
             file_object.close()
 
@@ -106,45 +106,61 @@ class OptimizationDataLogger:
             self.record_filename=ROOT_PATH+'/Data_'+str(file_count-1)+'.csv'
         #Initializes the counter to index the rows:
         self.read_row_count=0
+        self.total_rows = sum(1 for row in open(self.record_filename)) - 1
 
     def readDataRow(self):
         self.read_row_count+=1
-        data_row=pd.read_csv(self.record_filename,skiprows=self.read_row_count)
-        data_list=data_row.iloc[0].to_list()
+        if self.read_row_count>=self.total_rows:
+            #Reached end of the row
+            success=False
+            system_time=None
+            q_des=None
+            T_des=None
+            T_target=None
+            worldFrame=None
+            ECM_T_PSM_RCM=None
+            psm3_T_cam=None
+            offset=None
+            IK_Triggered=None
+            ECM_T_PSM3=None
+        else:
+            success=True
+            data_row=pd.read_csv(self.record_filename,skiprows=self.read_row_count)
+            data_list=data_row.iloc[0].to_list()
 
-        #Returns the data as a list such that:
-        '''
-        q_des, 
-        T_des, 
-        T_target, 
-        worldFrame,
-        ECM_T_PSM_RCM, 
-        psm3_T_cam,
-        offset
-        '''
-        system_time=data_list[0]
-        q_des=data_list[2:8]
-        T_des=data_list[9:21]
-        T_target=data_list[22:34]
-        worldFrame=data_list[35:47]
-        ECM_T_PSM_RCM=data_list[48:60]
-        psm3_T_cam=data_list[61:73]
-        offset=data_list[74:77]
-        IK_Triggered=data_list[77]
-        ECM_T_PSM3=data_list[78:90]
+            #Returns the data as a list such that:
+            '''
+            q_des, 
+            T_des, 
+            T_target, 
+            worldFrame,
+            ECM_T_PSM_RCM, 
+            psm3_T_cam,
+            offset
+            '''
+            system_time=data_list[0]
+            q_des=data_list[2:8]
+            T_des=data_list[9:21]
+            T_target=data_list[22:34]
+            worldFrame=data_list[35:47]
+            ECM_T_PSM_RCM=data_list[48:60]
+            psm3_T_cam=data_list[61:73]
+            offset=data_list[74:77]
+            IK_Triggered=data_list[77]
+            ECM_T_PSM3=data_list[78:90]
 
 
-        q_des=np.array(q_des,dtype=np.float64)
-        T_des=self.ConvertDataRow_ToNPFrame(T_des)
-        T_target=self.ConvertDataRow_ToNPFrame(T_target)
-        worldFrame=self.ConvertDataRow_ToNPFrame(worldFrame)
-        ECM_T_PSM_RCM=self.ConvertDataRow_ToNPFrame(ECM_T_PSM_RCM)
-        psm3_T_cam=self.ConvertDataRow_ToNPFrame(psm3_T_cam)
-        offset=np.array(offset,dtype=np.float64)   
-        ECM_T_PSM3=self.ConvertDataRow_ToNPFrame(ECM_T_PSM3)
+            q_des=np.array(q_des,dtype=np.float64)
+            T_des=self.ConvertDataRow_ToNPFrame(T_des)
+            T_target=self.ConvertDataRow_ToNPFrame(T_target)
+            worldFrame=self.ConvertDataRow_ToNPFrame(worldFrame)
+            ECM_T_PSM_RCM=self.ConvertDataRow_ToNPFrame(ECM_T_PSM_RCM)
+            psm3_T_cam=self.ConvertDataRow_ToNPFrame(psm3_T_cam)
+            offset=np.array(offset,dtype=np.float64)   
+            ECM_T_PSM3=self.ConvertDataRow_ToNPFrame(ECM_T_PSM3)
 
-        return system_time,q_des,T_des,T_target,worldFrame,ECM_T_PSM_RCM,psm3_T_cam,offset,IK_Triggered,ECM_T_PSM3
-
+        return success,system_time,q_des,T_des,T_target,worldFrame,ECM_T_PSM_RCM,psm3_T_cam,offset,IK_Triggered,ECM_T_PSM3
+        
 
 
 
