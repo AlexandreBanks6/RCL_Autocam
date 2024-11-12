@@ -179,6 +179,7 @@ class autocamCost():
         angleErr = np.rad2deg(CmnUtil.angleError(self.T_des, T))
         positionError = np.linalg.norm(T[0:3,3] - self.T_des[0:3,3])
         print("Position Error = " +str(positionError) + " m AngleErr = " + str(angleErr)+" deg")
+        return angleErr, positionError
         #print("joint error = " + str(q - self.q_des))
         #print("q = " +str(q) + " q_des = " + str(self.q_des))
 
@@ -190,6 +191,7 @@ class autocamCost():
         angleErr = np.rad2deg(CmnUtil.angleError(T_1, T))
         positionError = np.linalg.norm(T[0:3,3] - T_1[0:3,3])
         print("Position Error = " +str(positionError) + " m AngleErr = " + str(angleErr)+" deg")
+        return angleErr, positionError
 
     def huberLoss(self,err,delta=1.0):
         #Err is error of cost term (passed to huber/L2 Norm etc.)
