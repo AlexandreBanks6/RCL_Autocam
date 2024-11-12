@@ -13,6 +13,7 @@ from motion.PSMmodel import PSMmanipulator
 from geometry_msgs.msg import TransformStamped
 import costComputation
 import dVRKMotionSolver
+import OptimizationDataLogger
 
 
 ## GLOBALS
@@ -531,6 +532,11 @@ if __name__ == '__main__':
     )
     # motionSolver.prog.AddVisualizationCallback(cost.costCallback, motionSolver.q)
 
+    #Initializes datalogger to debug solver
+    datalogger=OptimizationDataLogger.OptimizationDataLogger()
+    datalogger.initRecording()
+
+
     
     #------------------------------------------------FILTERING INITIALIZATION---------------------------------------------------
     # positionFilter = filteringUtils.CircularBuffer(size=40,num_elements=3)
@@ -642,7 +648,7 @@ if __name__ == '__main__':
             jointState, solverError  = PSMmodel.InverseKinematics(jointState, pm.toMatrix(PSM3rcm_T_PSM3),1e-12,500)
             jointLimitFlag = PSMmodel.checkJointLimits(solverError,jointState, verbose= False)
             
-
+            written_row=False
             if not jointLimitFlag:
                 #compute optimization-based pose placement
                 #print("ecm_T_psm3_desired_Pose: "+str(pm.toMatrix(ecm_T_psm3_desired_Pose)))
@@ -671,11 +677,24 @@ if __name__ == '__main__':
                     # ecm_T_psm3_secondaryPose=pm.fromMatrix(ecm_T_psm3_secondaryPose)
 
                 # else:
+
+                data_row=[np.array(jointState),pm.toMatrix(ecm_T_psm3_secondaryPose),pm.toMatrix(ecm_T_R),\
+                          pm.toMatrix(ecm_T_w),pm.toMatrix(ECM_T_PSM_SUJ),pm.toMatrix(psm3_T_cam),np.array([offset.x(), offset.y(), offset.z()]),\
+                            not jointLimitFlag,psm3_pose]
+                datalogger.writeRow(data_row)
+                written_row=True
+
                 ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
                 
                 
                 print("Secondary Pose IK failed ", end="\r")
 
+            if not written_row:
+                data_row=[np.array(jointState),pm.toMatrix(ecm_T_psm3_secondaryPose),pm.toMatrix(ecm_T_R),\
+                          pm.toMatrix(ecm_T_w),pm.toMatrix(ECM_T_PSM_SUJ),pm.toMatrix(psm3_T_cam),np.array([offset.x(), offset.y(), offset.z()]),\
+                            not jointLimitFlag,psm3_pose]
+                datalogger.writeRow(data_row)
+                written_row=True
 
             psm3.move_cp(ecm_T_psm3_secondaryPose)
             
@@ -695,33 +714,40 @@ if __name__ == '__main__':
             jointState, solverError  = PSMmodel.InverseKinematics(jointState, pm.toMatrix(PSM3rcm_T_PSM3),1e-12,500)
             jointLimitFlag = PSMmodel.checkJointLimits(solverError,jointState, verbose= False)
             #print("joint state = " +str(jointState))
-            
-            if not jointLimitFlag and initialized:
+            written_row=False
+            if not jointLimitFlag:
 
                 #compute optimization-based pose placement
                 #print("ecm_T_psm3_desired_Pose: "+str(pm.toMatrix(ecm_T_psm3_desired_Pose)))
-                cost.initializeConditions(
-                    q_des = jointState, 
-                    T_des = pm.toMatrix(ecm_T_psm3_desired_Pose), 
-                    T_target = pm.toMatrix(ecm_T_R), 
-                    worldFrame= pm.toMatrix(ecm_T_w),
-                    ECM_T_PSM_RCM = pm.toMatrix(ECM_T_PSM_SUJ) , 
-                    psm3_T_cam= pm.toMatrix(psm3_T_cam),
-                    offset= np.array([offset.x(), offset.y(), offset.z()]),
-                    distanceReg = 10.0, 
-                    orientationReg = 25.0, 
-                    similarityReg = 0.0, #Not in use
-                    positionReg= 20.0,
-                    desOrientationReg=0.0, #Not in use
-                    desiredDistance = 0.01 #meters
-                )
+                # cost.initializeConditions(
+                #     q_des = jointState, 
+                #     T_des = pm.toMatrix(ecm_T_psm3_desired_Pose), 
+                #     T_target = pm.toMatrix(ecm_T_R), 
+                #     worldFrame= pm.toMatrix(ecm_T_w),
+                #     ECM_T_PSM_RCM = pm.toMatrix(ECM_T_PSM_SUJ) , 
+                #     psm3_T_cam= pm.toMatrix(psm3_T_cam),
+                #     offset= np.array([offset.x(), offset.y(), offset.z()]),
+                #     distanceReg = 10.0, 
+                #     orientationReg = 25.0, 
+                #     similarityReg = 0.0, #Not in use
+                #     positionReg= 20.0,
+                #     desOrientationReg=0.0, #Not in use
+                #     desiredDistance = 0.01 #meters
+                # )
                 #cost.testKinematics(jointState)
-                success, q, optimal_cost = motionSolver.solve_joints(q_curr)
+                #success, q, optimal_cost = motionSolver.solve_joints(q_curr)
                 #cost.ECM_T_PSM_RCM=ECM_T_PSM_SUJ
-                print("Solver succes: " + str(success))
+                #print("Solver succes: " + str(success))
+
+                #Writing row
+                data_row=[np.array(jointState),pm.toMatrix(ecm_T_psm3_desired_Pose),pm.toMatrix(ecm_T_R),\
+                          pm.toMatrix(ecm_T_w),pm.toMatrix(ECM_T_PSM_SUJ),pm.toMatrix(psm3_T_cam),np.array([offset.x(), offset.y(), offset.z()]),\
+                            not jointLimitFlag,psm3_pose]
+                datalogger.writeRow(data_row)
+                written_row=True
                 
-                cost.computePoseError(q)
-                cost.computeArbitraryPoseError(q,psm3_pose)
+                #cost.computePoseError(q)
+                #cost.computeArbitraryPoseError(q,psm3_pose)
                 # exit()
 
                 # Commanding to position
@@ -734,7 +760,12 @@ if __name__ == '__main__':
                 
                 
                 print("Primary Pose IK failed ", end="\r")
-
+            if not written_row:
+                data_row=[np.array(jointState),pm.toMatrix(ecm_T_psm3_desired_Pose),pm.toMatrix(ecm_T_R),\
+                          pm.toMatrix(ecm_T_w),pm.toMatrix(ECM_T_PSM_SUJ),pm.toMatrix(psm3_T_cam),np.array([offset.x(), offset.y(), offset.z()]),\
+                            not jointLimitFlag,psm3_pose]
+                datalogger.writeRow(data_row)
+                written_row=True
 
             #----------------------------FILTER DESIRED PSM3 (AUTOCAM) POSITION-----------------------------
             pos = ecm_T_psm3_desired_Pose.p
