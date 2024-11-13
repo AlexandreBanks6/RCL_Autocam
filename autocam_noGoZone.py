@@ -20,6 +20,7 @@ import OptimizationDataLogger
 
 ECM_T_PSM_SUJ = PyKDL.Frame()
 
+
 if sys.version_info.major < 3:
     input = raw_input
     
@@ -498,15 +499,9 @@ if __name__ == '__main__':
     ## For first iteration, we need to gracefully park PSM3 at the start of our tracking...
     # Query the poses for psm1, psm3 and ecm
     psm1_pose = psm1.measured_cp()
-
-
-
     psm3_pose = psm3.measured_cp()
-
     ecm_T_R = psm1_pose * psm1_T_R
-
     z_i = pm.toMatrix(psm3_pose)[0:3, 2]
-
     ecm_T_psm3_desired_Pose, prev_sgn = orient_camera(psm3_T_cam, ecm_T_R, ecm_T_w, z_i, df, offset)
     
 
@@ -526,9 +521,11 @@ if __name__ == '__main__':
         constraint_up = cost.jointsUpperBounds,
         n_joints = 6, 
         verbose = False,
-        solver_iterations=100,
-        solver_tolerance=1e-8,
-        max_solver_time=0.05
+        solver_iterations=50,
+        solver_tolerance=5e-4,
+        max_solver_time=0.05, 
+        solverName="NLOPT",
+        solver_algorithm="LD_SLSQP"
     )
     # motionSolver.prog.AddVisualizationCallback(cost.costCallback, motionSolver.q)
 
@@ -536,20 +533,22 @@ if __name__ == '__main__':
     datalogger=OptimizationDataLogger.OptimizationDataLogger()
     datalogger.initRecording()
 
+    OPTIMIZEPOSE = True #False = no optimization for pose when IK fails, True = optimization of pose when IK fails
+
 
     
     #------------------------------------------------FILTERING INITIALIZATION---------------------------------------------------
     # positionFilter = filteringUtils.CircularBuffer(size=40,num_elements=3)
     # rotationFilter = filteringUtils.CircularBuffer(size=60,num_elements=4)
     cameraPositionFilter = filteringUtils.CircularBuffer(size=165,num_elements=3)
-    cameraOrientationFiler=filteringUtils.rotationBuffer(size=5,num_elements=4)
+    cameraOrientationFiler=filteringUtils.rotationBuffer(size=20,num_elements=4)
 
     ######                                                                                                                ######
     ###### -------------------------------------------AUTOCAM CONTROL LOOP------------------------------------------------######
     ######                                                                                                                ######
 
-    psm1_positionFilter = filteringUtils.CircularBuffer(size=1,num_elements=3)
-    psm1_orientationFilter = filteringUtils.rotationBuffer(size=1,num_elements=4)
+    psm1_positionFilter = filteringUtils.CircularBuffer(size=5,num_elements=3)
+    psm1_orientationFilter = filteringUtils.rotationBuffer(size=5,num_elements=4)
 
     initialized = False
 
@@ -598,11 +597,10 @@ if __name__ == '__main__':
         inNoGo = point_in_cube(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4], verbose= False)
         belowFloor = point_below_floor(pm.toMatrix(ecm_T_psm3_desired_Pose*psm3_T_cam)[0:3,3] + np.array([offset.x(),offset.y(),offset.z()]), points[0], points[1], points[2], points[3], points[4],floor_offset=floor_off, verbose= False)
         orientationFlag = orientationConstraint(ecm_T_psm3_desired_Pose,ecm_T_w, verbose=False)
-        proximityFlag = distanceConstraint(ecm_T_psm3_desired_Pose, ecm_T_R, np.array([offset.x(),offset.y(),offset.z()]),psm3_T_cam= psm3_T_cam, df=0.08, verbose=False)
+        #proximityFlag = distanceConstraint(ecm_T_psm3_desired_Pose, ecm_T_R, np.array([offset.x(),offset.y(),offset.z()]),psm3_T_cam= psm3_T_cam, df=0.08, verbose=False)
         
     
 
-        # print("In No Go: " + str(inNoGo) + " BelowFloor: " + str(belowFloor) + " orientationFlag: " + str(orientationFlag) + " proximityFlag: " +str(proximityFlag), end = "\n\n")
 
 
         if (inNoGo or belowFloor or orientationFlag):
@@ -610,7 +608,7 @@ if __name__ == '__main__':
             
             #----------------------HANDLE NO GO ZONE----------------------------------------------------
 
-            if (orientationFlag ):
+            if (orientationFlag):
                 ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
 
 
@@ -619,21 +617,47 @@ if __name__ == '__main__':
                 point2centroid = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
                 ecm_T_psm3_secondaryPose.M = point2centroid.M
 
-                if( distanceConstraint(ecm_T_psm3_secondaryPose, ecm_T_R, np.array([offset.x(),offset.y(),offset.z()]),psm3_T_cam= psm3_T_cam, df=0.08, verbose=False) ):
-                    ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+                if(distanceConstraint(ecm_T_psm3_secondaryPose, ecm_T_R, np.array([offset.x(),offset.y(),offset.z()]),psm3_T_cam= psm3_T_cam, df=0.08, verbose=False) ):
+                    print("Distance Constraint")
+                    #ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+                    if OPTIMIZEPOSE:
+                        cost.initializeConditions(
+                            q_des = jointState, 
+                            T_des = pm.toMatrix(ecm_T_psm3_secondaryPose), 
+                            T_target = pm.toMatrix(ecm_T_R), 
+                            worldFrame= pm.toMatrix(ecm_T_w),
+                            ECM_T_PSM_RCM = pm.toMatrix(ECM_T_PSM_SUJ) , 
+                            psm3_T_cam= pm.toMatrix(psm3_T_cam),
+                            offset= np.array([offset.x(), offset.y(), offset.z()]),
+                            distanceReg = 25.0, 
+                            orientationReg = 30.0, 
+                            similarityReg = 1.0, #Not in use
+                            positionReg=15.0,
+                            desOrientationReg=2000.0, #Not in use
+                            desiredDistance = df #meters
+
+                        )
+                        success,q,optimal_cost = motionSolver.solve_joints(q_curr)
+                        print(f"Solver Success: {success}")
+
+                    #Commanding to position
+                    #if success:
+                        ecm_T_psm3_secondaryPose=cost.ECM_T_PSM(q)
+                        ecm_T_psm3_secondaryPose=pm.fromMatrix(ecm_T_psm3_secondaryPose)
+
+                    else:
+
+                    # data_row=[np.array(q_curr),pm.toMatrix(ecm_T_psm3_secondaryPose),pm.toMatrix(ecm_T_R),\
+                    #           pm.toMatrix(ecm_T_w),pm.toMatrix(ECM_T_PSM_SUJ),pm.toMatrix(psm3_T_cam),np.array([offset.x(), offset.y(), offset.z()]),\
+                    #             not jointLimitFlag,psm3_pose]
+                    # datalogger.writeRow(data_row)
+                    # written_row=True
+                        ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+
+                
 
             
-            #-----------------------FILTER DESIRED PSM3 (AUTOCAM) POSITION-------------------------------
-            pos = ecm_T_psm3_secondaryPose.p
-            cameraPositionFilter.append(np.array([pos[0], pos[1], pos[2]]))
-            pos_mean = cameraPositionFilter.get_mean()
-            ecm_T_psm3_secondaryPose.p = PyKDL.Vector(pos_mean[0],pos_mean[1],pos_mean[2])
 
-            #----------------------FILTER DESIRED PSM3 ORIENTATION ----------------------------------------
-          
-            cameraOrientationFiler.append(ecm_T_psm3_secondaryPose.M)
-            ecm_T_psm3_secondaryPose.M  = cameraOrientationFiler.get_mean()
-            #----------------------END OF FILTERING----------------------
             
             #check if desired pose violate IK constraints
             #inverse kinematics 
@@ -647,47 +671,45 @@ if __name__ == '__main__':
             PSM3rcm_T_PSM3 = ECM_T_PSM_SUJ.Inverse() *  ecm_T_psm3_secondaryPose
             jointState, solverError  = PSMmodel.InverseKinematics(jointState, pm.toMatrix(PSM3rcm_T_PSM3),1e-12,500)
             jointLimitFlag = PSMmodel.checkJointLimits(solverError,jointState, verbose= False)
-            
+            success = False
             written_row=False
             if not jointLimitFlag and initialized:
                 #compute optimization-based pose placement
-                #print("ecm_T_psm3_desired_Pose: "+str(pm.toMatrix(ecm_T_psm3_desired_Pose)))
-                cost.initializeConditions(
-                    q_des = jointState, 
-                    T_des = pm.toMatrix(ecm_T_psm3_secondaryPose), 
-                    T_target = pm.toMatrix(ecm_T_R), 
-                    worldFrame= pm.toMatrix(ecm_T_w),
-                    ECM_T_PSM_RCM = pm.toMatrix(ECM_T_PSM_SUJ) , 
-                    psm3_T_cam= pm.toMatrix(psm3_T_cam),
-                    offset= np.array([offset.x(), offset.y(), offset.z()]),
-                    distanceReg = 15.0, 
-                    orientationReg = 25.0, 
-                    similarityReg = 0.0, #Not in use
-                    positionReg=20.0,
-                    desOrientationReg=0.0, #Not in use
-                    desiredDistance = 0.01 #meters
+                if OPTIMIZEPOSE:
+                    cost.initializeConditions(
+                        q_des = jointState, 
+                        T_des = pm.toMatrix(ecm_T_psm3_secondaryPose), 
+                        T_target = pm.toMatrix(ecm_T_R), 
+                        worldFrame= pm.toMatrix(ecm_T_w),
+                        ECM_T_PSM_RCM = pm.toMatrix(ECM_T_PSM_SUJ) , 
+                        psm3_T_cam= pm.toMatrix(psm3_T_cam),
+                        offset= np.array([offset.x(), offset.y(), offset.z()]),
+                        distanceReg = 10.0, 
+                        orientationReg = 30.0, 
+                        similarityReg = 1.0, #Not in use
+                        positionReg=25.0,
+                        desOrientationReg=2000.0, #Not in use
+                        desiredDistance = df #meters
 
-                )
-                #cost.testKinematics(jointState)
-                success,q,optimal_cost = motionSolver.solve_joints(q_curr)
-
-                #cost.computePoseError(q)
-                #exit()
+                    )
+                    success,q,optimal_cost = motionSolver.solve_joints(q_curr)
+                    print(f"Solver Success: {success}")
 
                 #Commanding to position
                 #if success:
-                ecm_T_psm3_secondaryPose=cost.ECM_T_PSM(q)
-                ecm_T_psm3_secondaryPose=pm.fromMatrix(ecm_T_psm3_secondaryPose)
+                    ecm_T_psm3_secondaryPose=cost.ECM_T_PSM(q)
+                    ecm_T_psm3_secondaryPose=pm.fromMatrix(ecm_T_psm3_secondaryPose)
 
-                #else:
+                else:
 
                 # data_row=[np.array(q_curr),pm.toMatrix(ecm_T_psm3_secondaryPose),pm.toMatrix(ecm_T_R),\
                 #           pm.toMatrix(ecm_T_w),pm.toMatrix(ECM_T_PSM_SUJ),pm.toMatrix(psm3_T_cam),np.array([offset.x(), offset.y(), offset.z()]),\
                 #             not jointLimitFlag,psm3_pose]
                 # datalogger.writeRow(data_row)
                 # written_row=True
+                    ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
 
-                #ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+
                 
                 
                 print("Secondary Pose IK failed ")
@@ -698,6 +720,23 @@ if __name__ == '__main__':
             #                 not jointLimitFlag,psm3_pose]
             #     datalogger.writeRow(data_row)
             #     written_row=True
+
+            # if(distanceConstraint(ecm_T_psm3_secondaryPose, ecm_T_R, np.array([offset.x(),offset.y(),offset.z()]),psm3_T_cam= psm3_T_cam, df=0.08, verbose=False) ):
+            #     print("Distance Constraint")
+            #     ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+                        #-----------------------FILTER DESIRED PSM3 (AUTOCAM) POSITION-------------------------------
+            pos = ecm_T_psm3_secondaryPose.p
+            cameraPositionFilter.append(np.array([pos[0], pos[1], pos[2]]))
+            pos_mean = cameraPositionFilter.get_mean()
+            ecm_T_psm3_secondaryPose.p = PyKDL.Vector(pos_mean[0],pos_mean[1],pos_mean[2])
+
+            #----------------------FILTER DESIRED PSM3 ORIENTATION ----------------------------------------
+            # point2centroid = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+            # ecm_T_psm3_secondaryPose.M = point2centroid.M
+
+            cameraOrientationFiler.append(ecm_T_psm3_secondaryPose.M)
+            ecm_T_psm3_secondaryPose.M  = cameraOrientationFiler.get_mean()
+            #----------------------END OF FILTERING----------------------
 
             psm3.move_cp(ecm_T_psm3_secondaryPose)
             
@@ -713,34 +752,37 @@ if __name__ == '__main__':
             except Exception as e:
                 print("Unable to read psm3: "+str(e))
                 continue
+
             PSM3rcm_T_PSM3 = ECM_T_PSM_SUJ.Inverse() *  ecm_T_psm3_desired_Pose
             jointState, solverError  = PSMmodel.InverseKinematics(jointState, pm.toMatrix(PSM3rcm_T_PSM3),1e-12,500)
             jointLimitFlag = PSMmodel.checkJointLimits(solverError,jointState, verbose= False)
             #print("joint state = " +str(jointState))
-            written_row=False
+            #written_row=False
+            success = False #solver success 
+
             if not jointLimitFlag and initialized:
+                
+                if OPTIMIZEPOSE:
+                    #compute optimization-based pose placement
+                    cost.initializeConditions(
+                        q_des = jointState, 
+                        T_des = pm.toMatrix(ecm_T_psm3_desired_Pose), 
+                        T_target = pm.toMatrix(ecm_T_R), 
+                        worldFrame= pm.toMatrix(ecm_T_w),
+                        ECM_T_PSM_RCM = pm.toMatrix(ECM_T_PSM_SUJ) , 
+                        psm3_T_cam= pm.toMatrix(psm3_T_cam),
+                        offset= np.array([offset.x(), offset.y(), offset.z()]),
+                        distanceReg = 10.0, 
+                        orientationReg = 30.0, 
+                        similarityReg = 1.0, #Not in use
+                        positionReg=25.0,
+                        desOrientationReg=2000.0, #Not in use
+                        desiredDistance = df #meters
+                    )
 
-                #compute optimization-based pose placement
-                #print("ecm_T_psm3_desired_Pose: "+str(pm.toMatrix(ecm_T_psm3_desired_Pose)))
-                cost.initializeConditions(
-                    q_des = jointState, 
-                    T_des = pm.toMatrix(ecm_T_psm3_desired_Pose), 
-                    T_target = pm.toMatrix(ecm_T_R), 
-                    worldFrame= pm.toMatrix(ecm_T_w),
-                    ECM_T_PSM_RCM = pm.toMatrix(ECM_T_PSM_SUJ) , 
-                    psm3_T_cam= pm.toMatrix(psm3_T_cam),
-                    offset= np.array([offset.x(), offset.y(), offset.z()]),
-                    distanceReg = 15.0, 
-                    orientationReg = 25.0, 
-                    similarityReg = 0.0, #Not in use
-                    positionReg=20.0,
-                    desOrientationReg=0.0, #Not in use
-                    desiredDistance = 0.01 #meters
+                    success, q, optimal_cost = motionSolver.solve_joints(q_curr)
+                    print(f"Solver Success: {success}")
 
-                )
-                #cost.testKinematics(jointState)
-                success, q, optimal_cost = motionSolver.solve_joints(q_curr)
-                #cost.ECM_T_PSM_RCM=ECM_T_PSM_SUJ
                 #print("Solver succes: " + str(success))
 
                 #Writing row
@@ -750,17 +792,14 @@ if __name__ == '__main__':
                 # datalogger.writeRow(data_row)
                 # written_row=True
                 
-                #cost.computePoseError(q)
-                #cost.computeArbitraryPoseError(q,psm3_pose)
-                # exit()
 
                 # Commanding to position
-                # if success:
-                ecm_T_psm3_desired_Pose=cost.ECM_T_PSM(q)
-                ecm_T_psm3_desired_Pose=pm.fromMatrix(ecm_T_psm3_desired_Pose)
+                #if success:
+                    ecm_T_psm3_desired_Pose=cost.ECM_T_PSM(q)
+                    ecm_T_psm3_desired_Pose=pm.fromMatrix(ecm_T_psm3_desired_Pose)
 
-                # else:
-                #ecm_T_psm3_desired_Pose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+                else:
+                    ecm_T_psm3_desired_Pose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
                 
                 
                 print("Primary Pose IK failed ")
@@ -770,6 +809,10 @@ if __name__ == '__main__':
             #                 not jointLimitFlag,psm3_pose]
             #     datalogger.writeRow(data_row)
             #     written_row=True
+            #else:
+                #point at centroid
+            point2centroid = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
+            ecm_T_psm3_desired_Pose.M = point2centroid.M
 
             #----------------------------FILTER DESIRED PSM3 (AUTOCAM) POSITION-----------------------------
             pos = ecm_T_psm3_desired_Pose.p
@@ -777,9 +820,7 @@ if __name__ == '__main__':
             pos_mean = cameraPositionFilter.get_mean()
             ecm_T_psm3_desired_Pose.p = PyKDL.Vector(pos_mean[0],pos_mean[1],pos_mean[2])
             
-            #point at centroid
-            point2centroid = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
-            ecm_T_psm3_desired_Pose.M = point2centroid.M
+            
             #----------------------------FILTERING OF PSM3 Orientation---------------------------------------
           
             cameraOrientationFiler.append(ecm_T_psm3_desired_Pose.M)
@@ -789,8 +830,9 @@ if __name__ == '__main__':
            
 
             psm3.move_cp(ecm_T_psm3_desired_Pose)
-        
-        #Test PSM3 pose wrt z base of the robot
+        #", proximityFlag: " +str(proximityFlag) 
+        print("In No Go: " + str(inNoGo) + ", BelowFloor: " + str(belowFloor) + ", orientationFlag: " + str(orientationFlag) + ", IKtriggered = " + str(not jointLimitFlag) + ", solverSuccess = " +str(success), end = "\n\n")
+
 
             
 

@@ -211,8 +211,10 @@ class teleop:
             # Check if clutch is pressed or not
 
             #check rotation between current and origin
-
-            hrsv_T_controller_curr = self.controller_arm.setpoint_cp()
+            try:
+                hrsv_T_controller_curr = self.controller_arm.setpoint_cp()
+            except: 
+                continue
 
             rotationFrame = hrsv_T_controller_origin.Inverse()*hrsv_T_controller_curr
 
@@ -224,7 +226,10 @@ class teleop:
             #     hrsv_T_controller_curr.M=hrsv_T_controller_origin.M
 
             ## DISTANCE BASED METHOD
-            ecm_T_parent_curr = self.parent_arm.measured_cp() ## w.r.t ECM
+            try:
+                ecm_T_parent_curr = self.parent_arm.measured_cp() ## w.r.t ECM
+            except: 
+                continue
             ecm_T_cam_curr = ecm_T_parent_curr * self.parent_T_cam
             distance = LA.norm(pm.toMatrix(ecm_T_cam_curr)[0:3, 3] - pm.toMatrix(ecm_T_child_stationary)[0:3, 3])
             if distance > 0.01:
