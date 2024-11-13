@@ -6,7 +6,7 @@ import numpy as np
 
 
 class dVRKMotionSolver:
-    def __init__(self,cost_func,constraint_lb,constraint_up,n_joints=6,verbose=False,solver_iterations=500,solver_tolerance=1e-8,max_solver_time=0.5, solverName="IPOPT"):
+    def __init__(self,cost_func,constraint_lb,constraint_up,n_joints=6,verbose=False,solver_iterations=500,solver_tolerance=1e-8,max_solver_time=0.5, solverName="IPOPT",solver_algorithm="LD_SLSQP"):
         #cost_func of format cost_func(q), constraint_lb and constraint_up are the 
         #lower bound and uppwer bound box constraints, each np.array()'s of length n_joints
         #max_solver_time is in seconds
@@ -41,11 +41,19 @@ class dVRKMotionSolver:
 
         if solverName == "NLOPT":
             # self.solver_options.SetOption(NloptSolver().solver_id(),"tol",solver_tolerance)
-            self.solver_options.SetOption(NloptSolver().solver_id(),"MaxEvalName",solver_iterations)
+            self.solver_options.SetOption(NloptSolver().solver_id(),NloptSolver.MaxEvalName(),solver_iterations)
+            self.solver_options.SetOption(NloptSolver().solver_id(),NloptSolver.XRelativeToleranceName(),solver_tolerance)
+            self.solver_options.SetOption(NloptSolver().solver_id(),NloptSolver.AlgorithmName(),solver_algorithm)
             # self.solver_options.SetOption(NloptSolver().solver_id(),"acceptable_tol",solver_tolerance)
-            self.solver_options.SetOption(NloptSolver().solver_id(),"max_time",max_solver_time)
+            #self.solver_options.SetOption(NloptSolver().solver_id(),"maxtime",max_solver_time)
             #self.solver_options.SetOption(IpoptSolver().solver_id(),"mu_target",1e-1)
+            
             self.solver=NloptSolver()
+            
+            #Stuff for testing
+            #print(NloptSolver.MaxEvalName())
+            #self.prog.SetSolverOption(NloptSolver().solver_id(),NloptSolver.MaxEvalName(),solver_iterations)
+            #self.solver_options=None
 
         if solverName == "SNOPT":
             # self.solver_options.SetOption(SnoptSolver().solver_id(),"tol",solver_tolerance)
@@ -68,9 +76,11 @@ class dVRKMotionSolver:
         # print("init joints" + str(init_joints))
         # print("init joints type = " + str(type(init_joints)))
         result=self.solver.Solve(self.prog,init_joints,self.solver_options)
+
         success=result.is_success()
         q=result.GetSolution(self.q)
         optimal_cost=result.get_optimal_cost()
+        #print("Solver: "+str(result.get_solver_id().name()))
 
         if self.verbose:
             print("Optimization Successful: "+str(success))

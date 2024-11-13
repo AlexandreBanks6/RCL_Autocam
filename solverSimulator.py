@@ -54,14 +54,14 @@ class solverSimulator():
 
     #PURPOSE: Steps the simulator by loading in a row, solving for joints, and recording the results 
     #REQUIRES: Number of samples in the dataset
-    def stepSimulator(self, id, distanceRegArg= 1.0, orientationRegArg= 1.0, similarityRegArg= 1.0, positionRegArg= 1.0, desOrientationArg=1.0,verbose = True): 
+    def stepSimulator(self, id, distanceRegArg= 1.0, orientationRegArg= 1.0, similarityRegArg= 1.0, positionRegArg= 1.0, desOrientationArg=1.0,verbose = False): 
 
         #READ IN ROW FROM DATA LOADER AND POPULATE SIMULATION
         i = 0
-        print(str(len(self.loader.ik_indices)) + " number of IK indices" )
+        #print(str(len(self.loader.ik_indices)) + " number of IK indices" )
         time.sleep(5)
         while(1):
-            print(i)
+            #print(i)
             if i > len(self.loader.ik_indices) - 1:
                 break 
             success, system_time,q_des,T_des,T_target,worldFrame,ECM_T_PSM_RCM,psm3_T_cam,offset,IK_Triggered,ECM_T_PSM3 = self.loader.readDataRow(self.loader.ik_indices[i])
@@ -141,9 +141,9 @@ class solverSimulator():
         for key in self.results:
 
             mean, std = self.computeStatistics(self.results[key])
-            if key == "centroidViewAngle":
-                print(self.results[key])
-                print(f"mean and std of key ={mean} and {std}")
+            #if key == "centroidViewAngle":
+             #   print(self.results[key])
+              #  print(f"mean and std of key ={mean} and {std}")
             performance_mean[key+"_mean"] = mean
             performance_std[key+"_std"] = std
         
@@ -179,7 +179,7 @@ class solverSimulator():
         return mean_value, std_dev
     
     #PURPOSE: Runs an experiment over all of the data for a given set of regularization terms
-    def run_experiment(self, distanceReg, orientationReg, similarityReg, positionReg,desOrientationReg, solverIterations, solverTolerance, max_solver_time, solverName):
+    def run_experiment(self, distanceReg, orientationReg, similarityReg, positionReg,desOrientationReg, solverIterations, solverTolerance, max_solver_time, solverName,solver_algorithm):
 
         
                 #initialize motion solver 
@@ -192,7 +192,8 @@ class solverSimulator():
             solver_iterations = solverIterations, 
             solver_tolerance= solverTolerance,
             max_solver_time= max_solver_time,
-            solverName = solverName
+            solverName = solverName,
+            solver_algorithm=solver_algorithm
             
         )
         
@@ -404,14 +405,41 @@ if __name__ == "__main__":
     filename = "Data_9"
     simulator = solverSimulator(filename)
     
+    #Trying a bunch of different algorithms that run under the hood of the solver
+    #solver_algorithms=["LD_MMA","LD_SLSQP"]
+    # solver_algorithms = [ 
+    # "GD_STOGO", "GD_STOGO_RAND", 
+    # "LD_LBFGS", "LN_PRAXIS", "LD_VAR1", "LD_VAR2", "LD_TNEWTON", "LD_TNEWTON_RESTART", 
+    # "LD_TNEWTON_PRECOND", "LD_TNEWTON_PRECOND_RESTART", "GN_CRS2_LM", "GN_MLSL", "GD_MLSL", 
+    # "GN_MLSL_LDS", "GD_MLSL_LDS", "LD_MMA", "LN_COBYLA", "LN_NEWUOA", "LN_NEWUOA_BOUND", 
+    # "LN_NELDERMEAD", "LN_SBPLX", "LN_AUGLAG", "LD_AUGLAG", "LN_AUGLAG_EQ", "LD_AUGLAG_EQ", 
+    # "LN_BOBYQA", "GN_ISRES", "AUGLAG", "AUGLAG_EQ", "G_MLSL", "G_MLSL_LDS", 
+    # "LD_SLSQP", "LD_CCSAQ", "GN_ESCH", "GN_AGS"]
 
-    simulator.run_experiment(distanceReg=20.0, 
-                             orientationReg=25.0, 
-                             similarityReg=1.0, 
-                             positionReg=20.0,
-                             desOrientationReg=2000.0, 
-                             solverIterations=10, 
-                             max_solver_time=0.05, 
-                             solverTolerance=1e-8,
-                             solverName="NLOPT")
+    #Trying Different Weights
+    # distanceRegs=[15,20,25]
+    # orientationRegs=[15,20,25]
+    # positionRegs=[15,20,25]
+    # #for i in range(len(solver_algorithms)):
+    #  #   print("Algorithm Name: "+str(solver_algorithms[i]))
+    # for i in range(len(distanceRegs)):
+    #     for j in range(len(orientationRegs)):
+    #         for k in range(len(positionRegs)):
+    #             distanceReg=distanceRegs[i]
+    #             orientationReg=orientationRegs[j]
+    #             positionReg=positionRegs[k]
+    #             print("distanceReg: "+str(distanceReg))
+    #             print("orientationReg: "+str(orientationReg))
+    #             print("positionReg: "+str(positionReg))
+
+    simulator.run_experiment(distanceReg=10.0, 
+                            orientationReg=30.0, 
+                            similarityReg=1.0, 
+                            positionReg=25.0,
+                            desOrientationReg=2000.0, 
+                            solverIterations=50, 
+                            max_solver_time=0.05, 
+                            solverTolerance=1e-3,
+                            solverName="NLOPT",
+                            solver_algorithm="LD_SLSQP")    #Looks like the best algorithm
 

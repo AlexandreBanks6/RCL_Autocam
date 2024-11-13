@@ -9,6 +9,8 @@ import dVRKMotionSolver
 from motion import dvrkKinematics
 from motion import CmnUtil
 
+
+
 class autocamCost():
 
     def __init__(self, kinematicsModel = "Python"):
@@ -18,14 +20,14 @@ class autocamCost():
         self.jointsLowerBounds = [-4.7124,-0.9250, 0.00, -4.5379, -1.3963, -1.3963]
         self.jointsUpperBounds = [ 4.7124,0.9250, 0.24,  4.5379,  1.3963,  1.3963]
         #C++ binding for da Vinci Kinematics
-        if kinematicsModel == "C++":
-            self.psm = PSMmodel.PSMmanipulator()
-            self.psm.LoadRobot("motion/dvpsm.rob") #details the DH proximal 3 most proximal joints after SUJ
-            self.psm.loadTool("PROGRASP_FORCEPS_420093")
+        # if kinematicsModel == "C++":
+        #     self.psm = PSMmodel.PSMmanipulator()
+        #     self.psm.LoadRobot("motion/dvpsm.rob") #details the DH proximal 3 most proximal joints after SUJ
+        #     self.psm.loadTool("PROGRASP_FORCEPS_420093")
 
         #Python implementation of da Vinci Kinematics 
-        if kinematicsModel == "Python":
-            self.psm = dvrkKinematics.dvrkKinematics()
+        # if kinematicsModel == "Python":
+        self.psm = dvrkKinematics.dvrkKinematics()
 
         #q = computed joints
         #q_des = desired joints (what is returned by IK)
@@ -84,11 +86,11 @@ class autocamCost():
 
     #Takes in ECM_T_PSM_RCM and the joints,q, to compute ECM_T_PSM: ECM_T_PSM_RCM * PSM_RCM_T_
     def ECM_T_PSM(self, q):
-        if self.kinematicsModel == "C++":
-            y = np.array([x.value() for x in q], dtype=np.float64)
-            PSM_RCM_T_PSM = self.psm.ForwardKinematics(y)
-        elif self.kinematicsModel == "Python":
-            PSM_RCM_T_PSM = self.psm.fk_prograsp_420093(q)
+        # if self.kinematicsModel == "C++":
+        #     y = np.array([x.value() for x in q], dtype=np.float64)
+        #     PSM_RCM_T_PSM = self.psm.ForwardKinematics(y)
+        # elif self.kinematicsModel == "Python":
+        PSM_RCM_T_PSM = self.psm.fk_prograsp_420093(q)
         return self.ECM_T_PSM_RCM @ PSM_RCM_T_PSM
     
     def compareKinematics(self, dVmeasured_cp, q):
@@ -161,7 +163,7 @@ class autocamCost():
         ECM_T_PSM=self.ECM_T_PSM(q)
 
         distanceCost = self.huberLoss(self.distanceError(ECM_T_PSM), delta=0.02)
-        orientationCost= self.huberLoss(self.orientationError(ECM_T_PSM), delta = 0.5) #How far off it is normal from ring
+        orientationCost= self.huberLoss(self.orientationError(ECM_T_PSM), delta = 0.17) #How far off it is normal from ring
         #similarityCost = self.huberLoss(np.linalg.norm(self.jointSimilarity(q)))
         positionCost=self.huberLoss(self.positionError(ECM_T_PSM), delta = 0.01)
         #desorientationCost=self.huberLoss(self.rotationError(ECM_T_PSM))
@@ -209,6 +211,7 @@ class autocamCost():
     
     def l2norm(self, err):
         return np.linalg.norm(err)
+    
     
     
 
