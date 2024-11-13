@@ -1,10 +1,12 @@
 from pydrake.solvers import MathematicalProgram, SolverOptions, Solve
 from pydrake.solvers import IpoptSolver
+from pydrake.solvers import NloptSolver
+from pydrake.solvers import SnoptSolver
 import numpy as np
 
 
 class dVRKMotionSolver:
-    def __init__(self,cost_func,constraint_lb,constraint_up,n_joints=6,verbose=False,solver_iterations=500,solver_tolerance=1e-8,max_solver_time=0.5):
+    def __init__(self,cost_func,constraint_lb,constraint_up,n_joints=6,verbose=False,solver_iterations=500,solver_tolerance=1e-8,max_solver_time=0.5, solverName="IPOPT"):
         #cost_func of format cost_func(q), constraint_lb and constraint_up are the 
         #lower bound and uppwer bound box constraints, each np.array()'s of length n_joints
         #max_solver_time is in seconds
@@ -28,14 +30,30 @@ class dVRKMotionSolver:
         #Setting up the solver, more options here: https://coin-or.github.io/Ipopt/OPTIONS.html 
         #self.prog.SetSolverOption(IpoptSolver().solver_id(),"max_iter")
         self.solver_options=SolverOptions()
-        self.solver_options.SetOption(IpoptSolver().solver_id(),"tol",solver_tolerance)
-        self.solver_options.SetOption(IpoptSolver().solver_id(),"max_iter",solver_iterations)
-        self.solver_options.SetOption(IpoptSolver().solver_id(),"acceptable_tol",solver_tolerance)
-        self.solver_options.SetOption(IpoptSolver().solver_id(),"max_cpu_time",max_solver_time)
-        #self.solver_options.SetOption(IpoptSolver().solver_id(),"mu_target",1e-1)
+        
+        if solverName == "IPOPT":
+            self.solver_options.SetOption(IpoptSolver().solver_id(),"tol",solver_tolerance)
+            self.solver_options.SetOption(IpoptSolver().solver_id(),"max_iter",solver_iterations)
+            self.solver_options.SetOption(IpoptSolver().solver_id(),"acceptable_tol",solver_tolerance)
+            self.solver_options.SetOption(IpoptSolver().solver_id(),"max_cpu_time",max_solver_time)
+            #self.solver_options.SetOption(IpoptSolver().solver_id(),"mu_target",1e-1)
+            self.solver=IpoptSolver()
 
+        if solverName == "NLOPT":
+            self.solver_options.SetOption(NloptSolver().solver_id(),"tol",solver_tolerance)
+            self.solver_options.SetOption(NloptSolver().solver_id(),"max_iter",solver_iterations)
+            self.solver_options.SetOption(NloptSolver().solver_id(),"acceptable_tol",solver_tolerance)
+            self.solver_options.SetOption(NloptSolver().solver_id(),"max_cpu_time",max_solver_time)
+            #self.solver_options.SetOption(IpoptSolver().solver_id(),"mu_target",1e-1)
+            self.solver=NloptSolver()
 
-        self.solver=IpoptSolver()
+        if solverName == "SNOPT":
+            # self.solver_options.SetOption(SnoptSolver().solver_id(),"tol",solver_tolerance)
+            # self.solver_options.SetOption(SnoptSolver().solver_id(),"max_iter",solver_iterations)
+            # self.solver_options.SetOption(SnoptSolver().solver_id(),"acceptable_tol",solver_tolerance)
+            # self.solver_options.SetOption(SnoptSolver().solver_id(),"max_cpu_time",max_solver_time)
+            #self.solver_options.SetOption(IpoptSolver().solver_id(),"mu_target",1e-1)
+            self.solver=SnoptSolver()
 
         self.verbose=verbose
 

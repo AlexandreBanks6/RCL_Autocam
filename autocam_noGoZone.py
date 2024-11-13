@@ -528,7 +528,7 @@ if __name__ == '__main__':
         verbose = False,
         solver_iterations=100,
         solver_tolerance=1e-8,
-        max_solver_time=0.010
+        max_solver_time=0.05
     )
     # motionSolver.prog.AddVisualizationCallback(cost.costCallback, motionSolver.q)
 

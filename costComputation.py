@@ -1,7 +1,6 @@
 from motion import PSMmodel
 import dvrk
 import PyKDL
-import rospy
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import TransformStamped
 import numpy as np
@@ -105,7 +104,7 @@ class autocamCost():
     #Computes the distance between a current pose defined by q and ECM_T_PSM_RCM and desired pose T_des and subtracts 
     #the threshold and computes the L2 norm of this
     def distanceError(self, ECM_T_PSM): #Shouldn't there be a norm around this outer one?##############################
-        return np.linalg.norm(np.linalg.norm(self.T_target[0:3,3]  - ( (ECM_T_PSM @ self.psm3_T_cam)[0:3,3] + self.offset ) ) - self.desiredDistance )
+        return np.linalg.norm(self.T_target[0:3,3]  - ( (ECM_T_PSM @ self.psm3_T_cam)[0:3,3] + self.offset ) ) - self.desiredDistance 
 
     #computes the L2 norm between the computed and desired joint state
     def jointSimilarity(self, q):
@@ -161,10 +160,10 @@ class autocamCost():
         #Calculates forward kinematics first to save computation time
         ECM_T_PSM=self.ECM_T_PSM(q)
 
-        distanceCost = self.huberLoss(self.distanceError(ECM_T_PSM), delta=0.03)
+        distanceCost = self.huberLoss(self.distanceError(ECM_T_PSM), delta=0.02)
         orientationCost= self.huberLoss(self.orientationError(ECM_T_PSM), delta = 0.5) #How far off it is normal from ring
         #similarityCost = self.huberLoss(np.linalg.norm(self.jointSimilarity(q)))
-        positionCost=self.huberLoss(self.positionError(ECM_T_PSM), delta = 0.03)
+        positionCost=self.huberLoss(self.positionError(ECM_T_PSM), delta = 0.01)
         #desorientationCost=self.huberLoss(self.rotationError(ECM_T_PSM))
         costTerm = self.distanceReg*distanceCost + self.orientationReg*orientationCost + self.positionReg*positionCost #+ self.similarityReg*similarityCost
         #costTerm=self.positionReg*positionCost+self.desiredOrientationReg*desorientationCost
@@ -173,24 +172,26 @@ class autocamCost():
     def costCallback(self, q):
         print("COST = " + str(self.computeCost(q)))
 
-    def computePoseError(self, q):
+    def computePoseError(self, q, verbose=True):
         T = self.ECM_T_PSM(q)
         #print("Estimated Pose: "+str(T))
         angleErr = np.rad2deg(CmnUtil.angleError(self.T_des, T))
         positionError = np.linalg.norm(T[0:3,3] - self.T_des[0:3,3])
-        print("Position Error = " +str(positionError) + " m AngleErr = " + str(angleErr)+" deg")
+        if verbose:
+            print("Position Error = " +str(positionError) + " m AngleErr = " + str(angleErr)+" deg")
         return angleErr, positionError
         #print("joint error = " + str(q - self.q_des))
         #print("q = " +str(q) + " q_des = " + str(self.q_des))
 
     #PURPOSE: compute position and orientation error between two homogenous transforms
-    def computeArbitraryPoseError(self,q,T_1):
+    def computeArbitraryPoseError(self,q,T_1, verbose=True):
         T = self.ECM_T_PSM(q)
         # T_1 = pm.toMatrix(T_1)
         #print("Estimated Pose: "+str(T))
         angleErr = np.rad2deg(CmnUtil.angleError(T_1, T))
         positionError = np.linalg.norm(T[0:3,3] - T_1[0:3,3])
-        print("Position Error = " +str(positionError) + " m AngleErr = " + str(angleErr)+" deg")
+        if verbose:
+            print("Position Error = " +str(positionError) + " m AngleErr = " + str(angleErr)+" deg")
         return angleErr, positionError
 
     def huberLoss(self,err,delta=1.0):
@@ -233,6 +234,7 @@ def callbackTransformStamp(data):
 ECM_T_PSM_SUJ = PyKDL.Frame() 
 
 if __name__ == "__main__":
+    import rospy
 
     #for testing
     rospy.init_node("AnyName")
