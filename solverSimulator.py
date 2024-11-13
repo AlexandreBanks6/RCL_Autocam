@@ -410,8 +410,8 @@ if __name__ == "__main__":
                              similarityReg=1.0, 
                              positionReg=20.0,
                              desOrientationReg=2000.0, 
-                             solverIterations=100, 
-                             max_solver_time=1.0, 
+                             solverIterations=10, 
+                             max_solver_time=0.05, 
                              solverTolerance=1e-8,
                              solverName="NLOPT")
 

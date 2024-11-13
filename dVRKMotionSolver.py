@@ -40,10 +40,10 @@ class dVRKMotionSolver:
             self.solver=IpoptSolver()
 
         if solverName == "NLOPT":
-            self.solver_options.SetOption(NloptSolver().solver_id(),"tol",solver_tolerance)
-            self.solver_options.SetOption(NloptSolver().solver_id(),"max_iter",solver_iterations)
-            self.solver_options.SetOption(NloptSolver().solver_id(),"acceptable_tol",solver_tolerance)
-            self.solver_options.SetOption(NloptSolver().solver_id(),"max_cpu_time",max_solver_time)
+            # self.solver_options.SetOption(NloptSolver().solver_id(),"tol",solver_tolerance)
+            self.solver_options.SetOption(NloptSolver().solver_id(),"MaxEvalName",solver_iterations)
+            # self.solver_options.SetOption(NloptSolver().solver_id(),"acceptable_tol",solver_tolerance)
+            self.solver_options.SetOption(NloptSolver().solver_id(),"max_time",max_solver_time)
             #self.solver_options.SetOption(IpoptSolver().solver_id(),"mu_target",1e-1)
             self.solver=NloptSolver()
 
