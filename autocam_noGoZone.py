@@ -14,6 +14,7 @@ from geometry_msgs.msg import TransformStamped
 import costComputation
 import dVRKMotionSolver
 import OptimizationDataLogger
+import time
 
 
 ## GLOBALS
@@ -654,11 +655,6 @@ if __name__ == '__main__':
 
                     else:
 
-                    # data_row=[np.array(q_curr),pm.toMatrix(ecm_T_psm3_secondaryPose),pm.toMatrix(ecm_T_R),\
-                    #           pm.toMatrix(ecm_T_w),pm.toMatrix(ECM_T_PSM_SUJ),pm.toMatrix(psm3_T_cam),np.array([offset.x(), offset.y(), offset.z()]),\
-                    #             not jointLimitFlag,psm3_pose]
-                    # datalogger.writeRow(data_row)
-                    # written_row=True
                         ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
 
                 
@@ -695,18 +691,18 @@ if __name__ == '__main__':
                     success,q,optimal_cost = motionSolver.solve_joints(q_curr)
                     print(f"Solver Success: {success}")
 
-                #Commanding to position
                 #if success:
                     ecm_T_psm3_secondaryPose=cost.ECM_T_PSM(q)
                     ecm_T_psm3_secondaryPose=pm.fromMatrix(ecm_T_psm3_secondaryPose)
 
+                    data_row=[np.array(q_curr),pm.toMatrix(ecm_T_psm3_secondaryPose),pm.toMatrix(ecm_T_R),\
+                          pm.toMatrix(ecm_T_w),pm.toMatrix(ECM_T_PSM_SUJ),pm.toMatrix(psm3_T_cam),np.array([offset.x(), offset.y(), offset.z()]),\
+                            not jointLimitFlag,psm3_pose]
+                    datalogger.writeRow(data_row)
+                    written_row=True
+
                 else:
 
-                # data_row=[np.array(q_curr),pm.toMatrix(ecm_T_psm3_secondaryPose),pm.toMatrix(ecm_T_R),\
-                #           pm.toMatrix(ecm_T_w),pm.toMatrix(ECM_T_PSM_SUJ),pm.toMatrix(psm3_T_cam),np.array([offset.x(), offset.y(), offset.z()]),\
-                #             not jointLimitFlag,psm3_pose]
-                # datalogger.writeRow(data_row)
-                # written_row=True
                     ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
 
 
@@ -714,12 +710,12 @@ if __name__ == '__main__':
                 
                 print("Secondary Pose IK failed ")
 
-            # if not written_row:
-            #     data_row=[np.array(q_curr),pm.toMatrix(ecm_T_psm3_secondaryPose),pm.toMatrix(ecm_T_R),\
-            #               pm.toMatrix(ecm_T_w),pm.toMatrix(ECM_T_PSM_SUJ),pm.toMatrix(psm3_T_cam),np.array([offset.x(), offset.y(), offset.z()]),\
-            #                 not jointLimitFlag,psm3_pose]
-            #     datalogger.writeRow(data_row)
-            #     written_row=True
+            if not written_row:
+                data_row=[np.array(q_curr),pm.toMatrix(ecm_T_psm3_secondaryPose),pm.toMatrix(ecm_T_R),\
+                          pm.toMatrix(ecm_T_w),pm.toMatrix(ECM_T_PSM_SUJ),pm.toMatrix(psm3_T_cam),np.array([offset.x(), offset.y(), offset.z()]),\
+                            not jointLimitFlag,psm3_pose]
+                datalogger.writeRow(data_row)
+                written_row=True
 
             # if(distanceConstraint(ecm_T_psm3_secondaryPose, ecm_T_R, np.array([offset.x(),offset.y(),offset.z()]),psm3_T_cam= psm3_T_cam, df=0.08, verbose=False) ):
             #     print("Distance Constraint")
@@ -783,14 +779,13 @@ if __name__ == '__main__':
                     success, q, optimal_cost = motionSolver.solve_joints(q_curr)
                     print(f"Solver Success: {success}")
 
-                #print("Solver succes: " + str(success))
 
-                #Writing row
-                # data_row=[np.array(q_curr),pm.toMatrix(ecm_T_psm3_desired_Pose),pm.toMatrix(ecm_T_R),\
-                #           pm.toMatrix(ecm_T_w),pm.toMatrix(ECM_T_PSM_SUJ),pm.toMatrix(psm3_T_cam),np.array([offset.x(), offset.y(), offset.z()]),\
-                #             not jointLimitFlag,psm3_pose]
-                # datalogger.writeRow(data_row)
-                # written_row=True
+                    #Writing row
+                    data_row=[np.array(q_curr),pm.toMatrix(ecm_T_psm3_desired_Pose),pm.toMatrix(ecm_T_R),\
+                            pm.toMatrix(ecm_T_w),pm.toMatrix(ECM_T_PSM_SUJ),pm.toMatrix(psm3_T_cam),np.array([offset.x(), offset.y(), offset.z()]),\
+                                not jointLimitFlag,psm3_pose]
+                    datalogger.writeRow(data_row)
+                    written_row=True
                 
 
                 # Commanding to position
@@ -803,14 +798,15 @@ if __name__ == '__main__':
                 
                 
                 print("Primary Pose IK failed ")
-            # if not written_row:
-            #     data_row=[np.array(q_curr),pm.toMatrix(ecm_T_psm3_desired_Pose),pm.toMatrix(ecm_T_R),\
-            #               pm.toMatrix(ecm_T_w),pm.toMatrix(ECM_T_PSM_SUJ),pm.toMatrix(psm3_T_cam),np.array([offset.x(), offset.y(), offset.z()]),\
-            #                 not jointLimitFlag,psm3_pose]
-            #     datalogger.writeRow(data_row)
-            #     written_row=True
-            #else:
-                #point at centroid
+
+            if not written_row:
+                data_row=[np.array(q_curr),pm.toMatrix(ecm_T_psm3_desired_Pose),pm.toMatrix(ecm_T_R),\
+                          pm.toMatrix(ecm_T_w),pm.toMatrix(ECM_T_PSM_SUJ),pm.toMatrix(psm3_T_cam),np.array([offset.x(), offset.y(), offset.z()]),\
+                            not jointLimitFlag,psm3_pose]
+                datalogger.writeRow(data_row)
+                written_row=True
+
+            #point at centroid
             point2centroid = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
             ecm_T_psm3_desired_Pose.M = point2centroid.M
 
@@ -827,14 +823,9 @@ if __name__ == '__main__':
             ecm_T_psm3_desired_Pose.M  = cameraOrientationFiler.get_mean()
             #-----------------------------END OF FILTERING -------------------------------------------------------
 
-           
-
             psm3.move_cp(ecm_T_psm3_desired_Pose)
-        #", proximityFlag: " +str(proximityFlag) 
+
         print("In No Go: " + str(inNoGo) + ", BelowFloor: " + str(belowFloor) + ", orientationFlag: " + str(orientationFlag) + ", IKtriggered = " + str(not jointLimitFlag) + ", solverSuccess = " +str(success), end = "\n\n")
-
-
-            
 
 
         psm3.jaw.move_jp(np.array([0.0])) 
