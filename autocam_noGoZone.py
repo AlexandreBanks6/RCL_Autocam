@@ -605,6 +605,13 @@ if __name__ == '__main__':
 
         if (inNoGo or belowFloor or orientationFlag):
             rospy.sleep(message_rate)
+            try:
+                q_curr = psm3.measured_js()[0]
+                jointState=q_curr
+
+            except Exception as e:
+                print("Unable to read psm3: "+str(e))
+                continue
             
             #----------------------HANDLE NO GO ZONE----------------------------------------------------
 
@@ -622,7 +629,7 @@ if __name__ == '__main__':
                     #ecm_T_psm3_secondaryPose = computeSecondaryPose(psm3_pose,psm3_T_cam, ecm_T_R, ecm_T_w, offset)
                     if OPTIMIZEPOSE:
                         cost.initializeConditions(
-                            q_des = jointState, 
+                            q_des = 0.0, 
                             T_des = pm.toMatrix(ecm_T_psm3_secondaryPose), 
                             T_target = pm.toMatrix(ecm_T_R), 
                             worldFrame= pm.toMatrix(ecm_T_w),
@@ -661,13 +668,6 @@ if __name__ == '__main__':
             
             #check if desired pose violate IK constraints
             #inverse kinematics 
-            try:
-                q_curr = psm3.measured_js()[0]
-                jointState=q_curr
-
-            except Exception as e:
-                print("Unable to read psm3: "+str(e))
-                continue
             PSM3rcm_T_PSM3 = ECM_T_PSM_SUJ.Inverse() *  ecm_T_psm3_secondaryPose
             jointState, solverError  = PSMmodel.InverseKinematics(jointState, pm.toMatrix(PSM3rcm_T_PSM3),1e-12,500)
             jointLimitFlag = PSMmodel.checkJointLimits(solverError,jointState, verbose= False)
