@@ -299,6 +299,13 @@ def fit_ellipse(x, y, method='RANSAC', w=None):
     a = np.sqrt(1.0/(A1*np.cos(theta)**2 + 2*B1*np.cos(theta)*np.sin(theta)+C1*np.sin(theta)**2))
     b = np.sqrt(1.0/(A1*np.sin(theta)**2 - 2*B1*np.sin(theta)*np.cos(theta)+C1*np.cos(theta)**2))
     return cx,cy, a,b, theta
+    
+def setting_arm_state(arm):
+    #Funcion that enables the arms on the dVRK
+    #Checks to see if they have not already been enabled
+    if arm.operating_state() == "DISABLED":
+        arm.enable()
+        arm.home()
 
 
 if __name__ == '__main__':

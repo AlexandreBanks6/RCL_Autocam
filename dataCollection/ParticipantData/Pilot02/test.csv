@@ -1,0 +1,1 @@
+Sample #,Task Duration (s),Collisions (binary),Collisions (increments),Cumulative Collision Time (s),System Time,base_T_ecm,Tx,Ty,Tz,R00,R01,R02,R10,R11,R12,R20,R21,R22,ecm_T_psm1,Tx,Ty,Tz,R00,R01,R02,R10,R11,R12,R20,R21,R22,ecm_T_psm3,Tx,Ty,Tz,R00,R01,R02,R10,R11,R12,R20,R21,R22,psm1_joints,q1,q2,q3,q4,q5,q6,jaw,psm3_joints,q1,q2,q3,q4,q5,q6,jaw,ecm_joints,q1,q2,q3,q4

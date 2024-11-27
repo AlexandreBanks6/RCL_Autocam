@@ -753,7 +753,7 @@ if __name__ == '__main__':
             jointState, solverError  = PSMmodel.InverseKinematics(jointState, pm.toMatrix(PSM3rcm_T_PSM3),1e-12,500)
             jointLimitFlag = PSMmodel.checkJointLimits(solverError,jointState, verbose= False)
             #print("joint state = " +str(jointState))
-            #written_row=False
+            written_row=False
             success = False #solver success 
 
             if not jointLimitFlag and initialized:

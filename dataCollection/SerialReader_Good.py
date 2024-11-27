@@ -218,7 +218,7 @@ while True:
                 psm1_joints=psm1_joints.tolist()
             except Exception as e:
                 print("Unable to read psm1 joints: "+str(e))
-                psm1_joints=["NaN"]*6
+                psm1_joints=["NaN"]*7
 
             try:
                 joint_vars_psm3=psm3.measured_js()[0]
@@ -227,7 +227,7 @@ while True:
                 psm3_joints=psm3_joints.tolist()
             except Exception as e:
                 print("Unable to read psm3 joints: "+str(e))
-                psm3_joints=["NaN"]*6
+                psm3_joints=["NaN"]*7
 
             try:
                 ecm_joints=ecm.measured_js()[0]

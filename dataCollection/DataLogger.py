@@ -35,42 +35,51 @@ class DataLogger:
                 file_obj.close()
 
     def writeRow(self,arduino_list,system_time,base_T_ecm,ecm_T_psm1,ecm_T_psm3,psm1_joints,psm3_joints,ecm_joints):
-         #Joints are already passed as list
-         
-         #Starts row that we will write
-         row_to_write=arduino_list
-         row_to_write.append(system_time)
+        #Joints are already passed as list
+        
+        #Starts row that we will write
+        row_to_write=arduino_list
+        row_to_write.append(system_time)
 
-         #Converts PyKDL frames to numpy and then format for writing to csv
-         base_T_ecm=pm.toMatrix(base_T_ecm)
-         base_T_ecm_list=self.convertHomogeneousToCSVROW(base_T_ecm)
+        #Converts PyKDL frames to numpy and then format for writing to csv
+        if isinstance(base_T_ecm,list):
+             base_T_ecm_list=base_T_ecm
+        else:
+            base_T_ecm=pm.toMatrix(base_T_ecm)
+            base_T_ecm_list=self.convertHomogeneousToCSVROW(base_T_ecm)
 
-         ecm_T_psm1=pm.toMatrix(ecm_T_psm1)
-         ecm_T_psm1_list=self.convertHomogeneousToCSVROW(ecm_T_psm1)
+        if isinstance(ecm_T_psm1,list):
+             ecm_T_psm1_list=ecm_T_psm1
+        else:
+            ecm_T_psm1=pm.toMatrix(ecm_T_psm1)
+            ecm_T_psm1_list=self.convertHomogeneousToCSVROW(ecm_T_psm1)
 
-         ecm_T_psm3=pm.toMatrix(ecm_T_psm3)
-         ecm_T_psm3_list=self.convertHomogeneousToCSVROW(ecm_T_psm3)
+        if isinstance(ecm_T_psm3,list):
+            ecm_T_psm3_list=ecm_T_psm3
+        else:
+            ecm_T_psm3=pm.toMatrix(ecm_T_psm3)
+            ecm_T_psm3_list=self.convertHomogeneousToCSVROW(ecm_T_psm3)
 
 
 
-         #Appending data to the list to write
-         row_to_write.append("")
-         row_to_write.extend(base_T_ecm_list)
-         row_to_write.append("")
-         row_to_write.extend(ecm_T_psm1_list)
-         row_to_write.append("")
-         row_to_write.extend(ecm_T_psm3_list)
-         row_to_write.append("")
-         row_to_write.extend(psm1_joints)
-         row_to_write.append("")
-         row_to_write.extend(psm3_joints)
-         row_to_write.append("")
-         row_to_write.extend(ecm_joints)
+        #Appending data to the list to write
+        row_to_write.append("")
+        row_to_write.extend(base_T_ecm_list)
+        row_to_write.append("")
+        row_to_write.extend(ecm_T_psm1_list)
+        row_to_write.append("")
+        row_to_write.extend(ecm_T_psm3_list)
+        row_to_write.append("")
+        row_to_write.extend(psm1_joints)
+        row_to_write.append("")
+        row_to_write.extend(psm3_joints)
+        row_to_write.append("")
+        row_to_write.extend(ecm_joints)
 
-         with open(self.record_filename,'a',newline='') as file_obj:
-                writer_obj=csv.writer(file_obj)
-                writer_obj.writerow(row_to_write)
-                file_obj.close()
+        with open(self.record_filename,'a',newline='') as file_obj:
+            writer_obj=csv.writer(file_obj)
+            writer_obj.writerow(row_to_write)
+            file_obj.close()
 
     def convertHomogeneousToCSVROW(self,transform):
         #Input: 4x4 numpy array for homogeneous transform
