@@ -187,58 +187,59 @@ while True:
             #Decodes arduino list
             arduino_list=decoded_bytes.split(",")
             arduino_list=[int(item) for item in arduino_list]
-            #Data is in milliseconds, so we convert to seconds
-            arduino_list[1]=arduino_list[1]/1000
-            arduino_list[4]=arduino_list[4]/1000
+            if len(arduino_list)>=5:
+                #Data is in milliseconds, so we convert to seconds
+                arduino_list[1]=arduino_list[1]/1000
+                arduino_list[4]=arduino_list[4]/1000
 
-            #Gets frames and joint variables
-            try:
-                base_T_ecm=ecm.measured_cp()
-            except Exception as e:
-                print("Unable to read ecm: "+str(e))
-                base_T_ecm=["NaN"]*12
-        
-            try:
-                ecm_T_psm1=psm1.measured_cp()
-            except Exception as e:
-                print("Unable to read psm1: "+str(e))
-                ecm_T_psm1=["NaN"]*12
+                #Gets frames and joint variables
+                try:
+                    base_T_ecm=ecm.measured_cp()
+                except Exception as e:
+                    print("Unable to read ecm: "+str(e))
+                    base_T_ecm=["NaN"]*12
+            
+                try:
+                    ecm_T_psm1=psm1.measured_cp()
+                except Exception as e:
+                    print("Unable to read psm1: "+str(e))
+                    ecm_T_psm1=["NaN"]*12
 
-            try:
-                ecm_T_psm3=psm3.measured_cp()
-            except Exception as e:
-                print("Unable to read psm3: "+str(e))
-                ecm_T_psm3=["NaN"]*12
+                try:
+                    ecm_T_psm3=psm3.measured_cp()
+                except Exception as e:
+                    print("Unable to read psm3: "+str(e))
+                    ecm_T_psm3=["NaN"]*12
 
-            #Joint vars
-            try:
-                joint_vars_psm1=psm1.measured_js()[0]
-                jaw_angle_psm1=psm1.jaw.measured_js()[0]
-                psm1_joints=np.concatenate((joint_vars_psm1,jaw_angle_psm1))
-                psm1_joints=psm1_joints.tolist()
-            except Exception as e:
-                print("Unable to read psm1 joints: "+str(e))
-                psm1_joints=["NaN"]*7
+                #Joint vars
+                try:
+                    joint_vars_psm1=psm1.measured_js()[0]
+                    jaw_angle_psm1=psm1.jaw.measured_js()[0]
+                    psm1_joints=np.concatenate((joint_vars_psm1,jaw_angle_psm1))
+                    psm1_joints=psm1_joints.tolist()
+                except Exception as e:
+                    print("Unable to read psm1 joints: "+str(e))
+                    psm1_joints=["NaN"]*7
 
-            try:
-                joint_vars_psm3=psm3.measured_js()[0]
-                jaw_angle_psm3=psm3.jaw.measured_js()[0]
-                psm3_joints=np.concatenate((joint_vars_psm3,jaw_angle_psm3))
-                psm3_joints=psm3_joints.tolist()
-            except Exception as e:
-                print("Unable to read psm3 joints: "+str(e))
-                psm3_joints=["NaN"]*7
+                try:
+                    joint_vars_psm3=psm3.measured_js()[0]
+                    jaw_angle_psm3=psm3.jaw.measured_js()[0]
+                    psm3_joints=np.concatenate((joint_vars_psm3,jaw_angle_psm3))
+                    psm3_joints=psm3_joints.tolist()
+                except Exception as e:
+                    print("Unable to read psm3 joints: "+str(e))
+                    psm3_joints=["NaN"]*7
 
-            try:
-                ecm_joints=ecm.measured_js()[0]
-                ecm_joints=ecm_joints.tolist()
-            except Exception as e:
-                print("Unable to read ecm joints: "+str(e))
-                ecm_joints=["NaN"]*4
+                try:
+                    ecm_joints=ecm.measured_js()[0]
+                    ecm_joints=ecm_joints.tolist()
+                except Exception as e:
+                    print("Unable to read ecm joints: "+str(e))
+                    ecm_joints=["NaN"]*4
 
 
 
-            dataLogger_obj.writeRow(arduino_list,curr_time,base_T_ecm,ecm_T_psm1,ecm_T_psm3,psm1_joints,psm3_joints,ecm_joints)
+                dataLogger_obj.writeRow(arduino_list,curr_time,base_T_ecm,ecm_T_psm1,ecm_T_psm3,psm1_joints,psm3_joints,ecm_joints)
 
 
 
