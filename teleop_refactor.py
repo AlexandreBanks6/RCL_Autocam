@@ -144,9 +144,13 @@ class teleop:
         if self.ignore_operator == True:
 
             while self.start_teleop == False:
-                
-                print(self.controller_arm.gripper.measured_js()[0] * (180/np.pi))
-                if self.controller_arm.gripper.measured_js()[0] * (180/np.pi) < 30.0:
+                try:
+                    gripper_angle=self.controller_arm.gripper.measured_js()[0]
+                except:
+                    print("Unable to grab MTMR gripper")
+                    continue
+                #print( gripper_angle * (180/np.pi))
+                if gripper_angle * (180/np.pi) < 30.0:
                     self.start_teleop = True
 
                 rospy.sleep(self.expected_interval)
@@ -170,7 +174,7 @@ class teleop:
 
 
     def follow_mode(self):
-
+        
         hrsv_T_controller_ini = self.controller_arm.measured_cp()
         hrsv_T_controller_origin = self.controller_arm.measured_cp()
 
@@ -315,8 +319,11 @@ class teleop:
             self.set_all_arms_state()
             self.run_get()
             self.align_Controller_Arm()
+            print("Aligned Arms")
             self.check_teleop_start()
             self.release_controller()
+            print("*************")
+            print("Started Teleoperation")
             self.follow_mode()
 
             rospy.sleep(self.expected_interval)
