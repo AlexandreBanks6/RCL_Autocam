@@ -697,7 +697,7 @@ if __name__ == '__main__':
 
                     data_row=[np.array(q_curr),pm.toMatrix(ecm_T_psm3_secondaryPose),pm.toMatrix(ecm_T_R),\
                           pm.toMatrix(ecm_T_w),pm.toMatrix(ECM_T_PSM_SUJ),pm.toMatrix(psm3_T_cam),np.array([offset.x(), offset.y(), offset.z()]),\
-                            not jointLimitFlag,psm3_pose]
+                            not jointLimitFlag,psm3_pose, success, q]
                     datalogger.writeRow(data_row)
                     written_row=True
 
@@ -713,7 +713,7 @@ if __name__ == '__main__':
             if not written_row:
                 data_row=[np.array(q_curr),pm.toMatrix(ecm_T_psm3_secondaryPose),pm.toMatrix(ecm_T_R),\
                           pm.toMatrix(ecm_T_w),pm.toMatrix(ECM_T_PSM_SUJ),pm.toMatrix(psm3_T_cam),np.array([offset.x(), offset.y(), offset.z()]),\
-                            not jointLimitFlag,psm3_pose]
+                            not jointLimitFlag,psm3_pose, False, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]
                 datalogger.writeRow(data_row)
                 written_row=True
 
@@ -783,7 +783,7 @@ if __name__ == '__main__':
                     #Writing row
                     data_row=[np.array(q_curr),pm.toMatrix(ecm_T_psm3_desired_Pose),pm.toMatrix(ecm_T_R),\
                             pm.toMatrix(ecm_T_w),pm.toMatrix(ECM_T_PSM_SUJ),pm.toMatrix(psm3_T_cam),np.array([offset.x(), offset.y(), offset.z()]),\
-                                not jointLimitFlag,psm3_pose]
+                                not jointLimitFlag,psm3_pose, success, q]
                     datalogger.writeRow(data_row)
                     written_row=True
                 
@@ -802,7 +802,7 @@ if __name__ == '__main__':
             if not written_row:
                 data_row=[np.array(q_curr),pm.toMatrix(ecm_T_psm3_desired_Pose),pm.toMatrix(ecm_T_R),\
                           pm.toMatrix(ecm_T_w),pm.toMatrix(ECM_T_PSM_SUJ),pm.toMatrix(psm3_T_cam),np.array([offset.x(), offset.y(), offset.z()]),\
-                            not jointLimitFlag,psm3_pose]
+                            not jointLimitFlag,psm3_pose, False, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]
                 datalogger.writeRow(data_row)
                 written_row=True
 

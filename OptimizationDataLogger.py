@@ -7,7 +7,7 @@ import pandas as pd
 repeat_string=["Tx","Ty","Tz","R00","R01","R02","R10","R11","R12","R20","R21","R22"]
 CSV_HEADER=["System Time","q_des"]+['q0','q1','q2','q3','q4','q5']+["T_des"]+repeat_string+["T_target"]+repeat_string+\
     ["worldFrame"]+repeat_string+["ECM_T_PSM_RCM"]+repeat_string+["psm3_T_cam"]+repeat_string+["offset"]+\
-    ['x','y','z','IK Trigered','ECM_T_PSM3']+repeat_string
+    ['x','y','z','IK Trigered','ECM_T_PSM3']+repeat_string +['solverSuccess'] + ['q_solverOutput','q0','q1','q2','q3','q4','q5']
 
 ROOT_PATH='optimizationData'
 
@@ -49,7 +49,9 @@ class OptimizationDataLogger:
         psm3_T_cam,
         offset,
         IK Triggered Boolean,
-        ECM_T_PSM3
+        ECM_T_PSM3,
+        solverSuccess,
+        q_solverOutput 
 
         '''
         #Gets system time
@@ -82,6 +84,13 @@ class OptimizationDataLogger:
         row_to_write.append(data_list[7])
         row_to_write.append("")
         row_to_write.extend(self.convertHomogeneousToCSVROW(data_list[8]))
+
+        #Adds the solver success 
+        row_to_write.append(data_list[9])
+
+        #Adds the computed joints from the solver
+        row_to_write.append("")
+        row_to_write.extend(data_list[10])
 
         
         
