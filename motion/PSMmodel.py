@@ -1,6 +1,5 @@
 # import dvrkKinematics
 import numpy as np
-import dvrk
 import PyKDL
 import rospy
 from motion import arm
@@ -137,6 +136,7 @@ if __name__ == "__main__":
     rospy.init_node("AnyName")
     rospy.Rate(10000)
 
+    import dvrk
     ARM = dvrk.psm("PSM3")
     #ECM = dvrk.ecm("ECM")
     ARM.enable()

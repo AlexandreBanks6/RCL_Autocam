@@ -1,11 +1,7 @@
-from motion import PSMmodel
-import dvrk
+# from motion import PSMmodel
 import PyKDL
-from geometry_msgs.msg import PoseStamped
-from geometry_msgs.msg import TransformStamped
 import numpy as np
 import tf_conversions.posemath as pm
-import dVRKMotionSolver
 from motion import dvrkKinematics
 from motion import CmnUtil
 
@@ -52,15 +48,15 @@ class autocamCost():
         self.psm3_T_cam = PyKDL.Frame()
         self.worldFrame = PyKDL.Frame() # ECM_T_W
     
-    def testKinematics(self, q):
-        psm_c = PSMmodel.PSMmanipulator()
-        psm_c.LoadRobot("motion/dvpsm.rob") #details the DH proximal 3 most proximal joints after SUJ
-        psm_c.loadTool("PROGRASP_FORCEPS_420093")
+    # def testKinematics(self, q):
+    #     psm_c = PSMmodel.PSMmanipulator()
+    #     psm_c.LoadRobot("motion/dvpsm.rob") #details the DH proximal 3 most proximal joints after SUJ
+    #     psm_c.loadTool("PROGRASP_FORCEPS_420093")
 
-        psm_py = dvrkKinematics.dvrkKinematics()
+    #     psm_py = dvrkKinematics.dvrkKinematics()
 
-        print("py kinematics = " + str(psm_py.fk_prograsp_420093(q)))
-        print("C++ kinematics = " + str(psm_c.ForwardKinematics(q)))
+    #     print("py kinematics = " + str(psm_py.fk_prograsp_420093(q)))
+    #     print("C++ kinematics = " + str(psm_c.ForwardKinematics(q)))
 
         
 
@@ -238,7 +234,9 @@ ECM_T_PSM_SUJ = PyKDL.Frame()
 
 if __name__ == "__main__":
     import rospy
-
+    import dvrk
+    from geometry_msgs.msg import PoseStamped
+    from geometry_msgs.msg import TransformStamped
     #for testing
     rospy.init_node("AnyName")
     rospy.Rate(10000)
@@ -291,6 +289,8 @@ if __name__ == "__main__":
 
 
     #initialize the solver
+    import dVRKMotionSolver
+
     motionSolver = dVRKMotionSolver.dVRKMotionSolver(
         cost_func = cost.computeCost,
         constraint_lb = cost.jointsLowerBounds,

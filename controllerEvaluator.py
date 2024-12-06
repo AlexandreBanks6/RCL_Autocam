@@ -16,7 +16,7 @@ import os
 """
 
 
-class solverSimulator():
+class controllerEvaluator():
 
     def __init__(self, filename):
 
@@ -406,7 +406,7 @@ GOALS:
 
 if __name__ == "__main__":
     filename = "Data_9"
-    simulator = solverSimulator(filename)
+    simulator = controllerEvaluator(filename)
     
     #Trying a bunch of different algorithms that run under the hood of the solver
     #solver_algorithms=["LD_MMA","LD_SLSQP"]
