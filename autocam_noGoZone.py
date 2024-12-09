@@ -541,7 +541,7 @@ if __name__ == '__main__':
     #------------------------------------------------FILTERING INITIALIZATION---------------------------------------------------
     # positionFilter = filteringUtils.CircularBuffer(size=40,num_elements=3)
     # rotationFilter = filteringUtils.CircularBuffer(size=60,num_elements=4)
-    cameraPositionFilter = filteringUtils.CircularBuffer(size=165,num_elements=3)
+    cameraPositionFilter = filteringUtils.CircularBuffer(size=140,num_elements=3)
     cameraOrientationFiler=filteringUtils.rotationBuffer(size=20,num_elements=4)
 
     ######                                                                                                                ######
