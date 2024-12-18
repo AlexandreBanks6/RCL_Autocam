@@ -187,17 +187,13 @@ end
 
 %% Boxplot of cumulitive difference measures
 %Grouping Variable
-group=[repmat({'task dur stat-aut'},size(differenceMatrix,1),1);...
-    repmat({'task dur endo-aut'},size(differenceMatrix,1),1);...
-    repmat({'num collisions stat-aut'},size(differenceMatrix,1),1);...
-    repmat({'num collisions endo-aut'},size(differenceMatrix,1),1);...
-    repmat({'collision duration stat-aut'},size(differenceMatrix,1),1);...
-    repmat({'num collisions endo-aut'},size(differenceMatrix,1),1)];
+group=[repmat({'task dur stat-aut'},length(differenceMatrix),1);...
+    repmat({'AR'},length(AR_onehanded_num_collisions),1)];
 
 figure;
-h=boxplot(differenceMatrix,group,'MedianStyle','line','BoxStyle','outline');
-title('Population Errors in Outcome Vars','FontName', 'Arial', 'FontSize', 14,'FontWeight','bold')
-ylabel('Population Error','FontName', 'Arial', 'FontSize', 14);
+h=boxplot([onehanded_num_collisions';AR_onehanded_num_collisions'],group,'MedianStyle','line','BoxStyle','outline');
+title('Cumulative Number of Collisions','FontName', 'Arial', 'FontSize', 14,'FontWeight','bold')
+ylabel('Collision #','FontName', 'Arial', 'FontSize', 14);
 set(h, 'LineWidth', 2);
 
 
