@@ -1,6 +1,8 @@
 %% Assess Participant
 % PURPOSE: Loop through all condition folders and generate ConditionSummaryFiles in a participant and compute the average scores for each condition and 
-% place them in the file ParticipantXXMasterFile.xlsx for easy viewing. Include the raw data as well. 
+% place them in the file ParticipantXXMasterFile.xlsx for easy viewing.
+% Include the raw data as well. Difference here is that each trial is split
+% into a forward and a backwards pass
 
 
 % OUTPUT: An xlsx file titled "ParticipantMasterFile.xlsx"., containing all of
