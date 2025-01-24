@@ -1,0 +1,69 @@
+clear
+clc
+close all
+%% Init Constants
+EXTERNAL_WIDTH=round(0.4*1280); %Width of camera
+EXTERNAL_HEIGHT=0.4*960; %Height of camera
+MID_WIDTH=EXTERNAL_WIDTH/2;
+MID_HEIGHT=EXTERNAL_HEIGHT/2;
+
+%% Reading in and sorting centroid data
+data_one=xlsread("CentroidTrackingValidationData\Data_1.csv");
+data_two=xlsread("CentroidTrackingValidationData\Data_2.csv");
+data_one(1:5,:)=[];
+data_two(1:5,:)=[];
+data=[data_one;data_two];
+%Extracting u,v coordinates of centroid for left/right cam
+u_left=data(:,30);
+v_left=data(:,31);
+
+u_right=data(:,60);
+v_right=data(:,61);
+
+%Getting rid of -1's
+u_left=u_left(u_left~=-1);
+v_left=v_left(v_left~=-1);
+u_right=u_right(u_right~=-1);
+v_right=v_right(v_right~=-1);
+
+%% Statistics
+
+%%%%%%%%Left Camera%%%%%%%
+%%Euclidean Norm
+left_norm_err=sqrt((MID_WIDTH-u_left).^2+(MID_HEIGHT-v_left).^2);
+left_norm_avg=mean(left_norm_err);
+left_norm_std=std(left_norm_err);
+
+%Large outliers (>2*std) because of error in visual tracking
+[left_norm_err_new,left_keep]=rm_outliers(left_norm_err,left_norm_avg,left_norm_std);
+left_norm_avg_new=mean(left_norm_err_new);
+left_norm_std_new=std(left_norm_err_new);
+
+%%%%%%%Component Errors%%%%%%%%
+left_u_err=abs(MID_WIDTH-u_left);
+left_u_err=left_u_err(left_keep);
+left_u_avg=mean(left_u_err);
+left_u_std=std(left_u_err);
+
+left_v_err=abs(MID_HEIGHT-v_left);
+left_v_err=left_v_err(left_keep);
+left_v_avg=mean(left_v_err);
+left_v_std=std(left_v_err);
+
+%% Plotting Results
+
+%%%%%%%%Heat Map of u,v and closeness to 
+
+
+
+%% Functions
+function [data_new,keep_indeces]=rm_outliers(data,avg,std)
+keep_indeces=data<(avg+2*std) & data>(avg-2*std);
+data_new=data(keep_indeces);
+end
+
+
+
+
+
+
