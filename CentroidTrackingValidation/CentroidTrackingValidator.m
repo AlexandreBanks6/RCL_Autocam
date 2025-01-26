@@ -116,9 +116,9 @@ hold off
 %set(gca, 'YDir', 'normal'); % Flip the y-axis to match standard plot orientation
 xlim([0, EXTERNAL_WIDTH]);
 ylim([0, EXTERNAL_HEIGHT]);
-title('Left Camera Centroid Tracking Scatter Density Plot','FontSize',12,'FontName','Times','FontWeight','bold');
-xlabel('u_{left}','FontSize',12,'FontName','Times');
-ylabel('v_{left}','FontSize',12,'FontName','Times');
+title('Left Camera Centroid Tracking Scatter Density Plot','FontSize',22,'FontName','Times','FontWeight','bold');
+xlabel('u_{left}','FontSize',22,'FontName','Times','FontWeight','bold');
+ylabel('v_{left}','FontSize',22,'FontName','Times','FontWeight','bold');
 fig.Position = [100, 100, 800, 600];
 
 
@@ -132,9 +132,9 @@ hold off
 %set(gca, 'YDir', 'normal'); % Flip the y-axis to match standard plot orientation
 xlim([0, EXTERNAL_WIDTH]);
 ylim([0, EXTERNAL_HEIGHT]);
-title('Right Camera Centroid Tracking Scatter Density Plot','FontSize',12,'FontName','Times','FontWeight','bold');
-xlabel('u_{right}','FontSize',12,'FontName','Times');
-ylabel('v_{right}','FontSize',12,'FontName','Times');
+title('Right Camera Centroid Tracking Scatter Density Plot','FontSize',22,'FontName','Times','FontWeight','bold');
+xlabel('u_{right}','FontSize',22,'FontName','Times','FontWeight','bold');
+ylabel('v_{right}','FontSize',22,'FontName','Times','FontWeight','bold');
 fig.Position = [100, 100, 800, 600];
 
 %%%%%%% u&v error as function of time %%%%%%%
@@ -144,36 +144,36 @@ max_err=max([left_u_err;left_v_err;right_u_err;right_v_err]);
 fig=figure;
 plot(elapsed_time_left,left_u_err,'.-','Color','#17bfb6','LineWidth',1);
 ylim([0,max_err]);
-title('Left Camera U-Coordinate Error','FontSize',12,'FontName','Times','FontWeight','bold');
-xlabel('Trial Time (s)','FontSize',12,'FontName','Times');
-ylabel('|Screen_{w}/2-u_{left}|','FontSize',12,'FontName','Times');
+title('Left Camera U-Coordinate Error','FontSize',26,'FontName','Times','FontWeight','bold');
+xlabel('Trial Time (s)','FontSize',26,'FontName','Times','FontWeight','bold');
+ylabel('|Screen_{w}/2-u_{left}|','FontSize',26,'FontName','Times','FontWeight','bold');
 fig.Position = [100, 100, 1400, 650];
 
 %v left error
 fig=figure;
 plot(elapsed_time_left,left_v_err,'.-','Color','#fec636','LineWidth',1);
 ylim([0,max_err]);
-title('Left Camera V-Coordinate Error','FontSize',12,'FontName','Times','FontWeight','bold');
-xlabel('Trial Time (s)','FontSize',12,'FontName','Times');
-ylabel('|Screen_{h}/2-v_{left}|','FontSize',12,'FontName','Times');
+title('Left Camera V-Coordinate Error','FontSize',26,'FontName','Times','FontWeight','bold');
+xlabel('Trial Time (s)','FontSize',26,'FontName','Times','FontWeight','bold');
+ylabel('|Screen_{h}/2-v_{left}|','FontSize',26,'FontName','Times','FontWeight','bold');
 fig.Position = [100, 100, 1400, 650];
 
 %u right error
 fig=figure;
 plot(elapsed_time_right,right_u_err,'.-','Color','#17bfb6','LineWidth',1);
 ylim([0,max_err]);
-title('Right Camera U-Coordinate Error','FontSize',12,'FontName','Times','FontWeight','bold');
-xlabel('Trial Time (s)','FontSize',12,'FontName','Times');
-ylabel('|Screen_{w}/2-u_{right}|','FontSize',12,'FontName','Times');
+title('Right Camera U-Coordinate Error','FontSize',26,'FontName','Times','FontWeight','bold');
+xlabel('Trial Time (s)','FontSize',26,'FontName','Times','FontWeight','bold');
+ylabel('|Screen_{w}/2-u_{right}|','FontSize',26,'FontName','Times','FontWeight','bold');
 fig.Position = [100, 100, 1400, 650];
 
 %v right error
 fig=figure;
 plot(elapsed_time_right,right_v_err,'.-','Color','#fec636','LineWidth',1);
 ylim([0,max_err]);
-title('Right Camera V-Coordinate Error','FontSize',12,'FontName','Times','FontWeight','bold');
-xlabel('Trial Time (s)','FontSize',12,'FontName','Times');
-ylabel('|Screen_{h}/2-v_{right}|','FontSize',12,'FontName','Times');
+title('Right Camera V-Coordinate Error','FontSize',26,'FontName','Times','FontWeight','bold');
+xlabel('Trial Time (s)','FontSize',26,'FontName','Times','FontWeight','bold');
+ylabel('|Screen_{h}/2-v_{right}|','FontSize',26,'FontName','Times','FontWeight','bold');
 fig.Position = [100, 100, 1400, 650];
 
 
