@@ -141,6 +141,7 @@ scatplot(u_left,v_left,'circles',15,100,5,3,15);
 hold on
 plot(MID_WIDTH,MID_HEIGHT,'xk','MarkerSize',20,'LineWidth',3);
 hold off
+set(gca,'FontSize',16)
 %set(gca, 'YDir', 'normal'); % Flip the y-axis to match standard plot orientation
 xlim([0, EXTERNAL_WIDTH]);
 ylim([0, EXTERNAL_HEIGHT]);
@@ -157,12 +158,13 @@ scatplot(u_right,v_right,'circles',15,100,5,3,15);
 hold on
 plot(MID_WIDTH,MID_HEIGHT,'xk','MarkerSize',20,'LineWidth',3);
 hold off
+set(gca,'FontSize',16)
 %set(gca, 'YDir', 'normal'); % Flip the y-axis to match standard plot orientation
 xlim([0, EXTERNAL_WIDTH]);
 ylim([0, EXTERNAL_HEIGHT]);
 title('Right Camera Centroid Tracking Scatter Density Plot','FontSize',26,'FontName','Times','FontWeight','bold');
-xlabel('u_{right} (pix)','FontSize',26,'FontName','Times','FontWeight','bold');
-ylabel('v_{right} (pix)','FontSize',26,'FontName','Times','FontWeight','bold');
+xlabel('u_{right} (pix)','FontSize',24,'FontName','Times','FontWeight','bold');
+ylabel('v_{right} (pix)','FontSize',24,'FontName','Times','FontWeight','bold');
 fig.Position = [100, 100, 800, 600];
 
 %%%%%%% u&v error as function of time %%%%%%%
@@ -170,38 +172,46 @@ max_err=max([(left_u_err./EXTERNAL_WIDTH).*100;(left_v_err./EXTERNAL_HEIGHT).*10
 
 %u left error
 fig=figure;
-plot(elapsed_time_left,(left_u_err./EXTERNAL_WIDTH).*100,'.-','Color','#17bfb6','LineWidth',1);
+%plot(elapsed_time_left,(left_u_err./EXTERNAL_WIDTH).*100,'.-','Color','#17bfb6','LineWidth',1);
+plot(elapsed_time_left,(left_u_err./EXTERNAL_WIDTH).*100,'.-','Color','#7f7f7f','LineWidth',1)
+set(gca,'FontSize',24)
 ylim([0,max_err]);
 title('Left Camera U-Coordinate Error','FontSize',32,'FontName','Times','FontWeight','bold');
-xlabel('Trial Time (s)','FontSize',32,'FontName','Times','FontWeight','bold');
-ylabel('|u_{left} Error| (%)','FontSize',32,'FontName','Times','FontWeight','bold');
+xlabel('Trial Time (s)','FontSize',34,'FontName','Times','FontWeight','bold');
+ylabel('|u_{left} Error| (%)','FontSize',34,'FontName','Times','FontWeight','bold');
 fig.Position = [100, 100, 1400, 650];
 
 %v left error
 fig=figure;
-plot(elapsed_time_left,(left_v_err./EXTERNAL_HEIGHT).*100,'.-','Color','#fec636','LineWidth',1);
+%plot(elapsed_time_left,(left_v_err./EXTERNAL_HEIGHT).*100,'.-','Color','#fec636','LineWidth',1);
+plot(elapsed_time_left,(left_v_err./EXTERNAL_HEIGHT).*100,'.-','Color','#7f7f7f','LineWidth',1);
+set(gca,'FontSize',24)
 ylim([0,max_err]);
 title('Left Camera V-Coordinate Error','FontSize',32,'FontName','Times','FontWeight','bold');
-xlabel('Trial Time (s)','FontSize',32,'FontName','Times','FontWeight','bold');
-ylabel('|v_{left} Error| (%)','FontSize',32,'FontName','Times','FontWeight','bold');
+xlabel('Trial Time (s)','FontSize',34,'FontName','Times','FontWeight','bold');
+ylabel('|v_{left} Error| (%)','FontSize',34,'FontName','Times','FontWeight','bold');
 fig.Position = [100, 100, 1400, 650];
 
 %u right error
 fig=figure;
-plot(elapsed_time_right,(right_u_err./EXTERNAL_WIDTH).*100,'.-','Color','#17bfb6','LineWidth',1);
+%plot(elapsed_time_right,(right_u_err./EXTERNAL_WIDTH).*100,'.-','Color','#17bfb6','LineWidth',1);
+plot(elapsed_time_right,(right_u_err./EXTERNAL_WIDTH).*100,'.-','Color','#7f7f7f','LineWidth',1);
+set(gca,'FontSize',24)
 ylim([0,max_err]);
 title('Right Camera U-Coordinate Error','FontSize',32,'FontName','Times','FontWeight','bold');
-xlabel('Trial Time (s)','FontSize',32,'FontName','Times','FontWeight','bold');
-ylabel('|u_{right} Error| (%)','FontSize',32,'FontName','Times','FontWeight','bold');
+xlabel('Trial Time (s)','FontSize',34,'FontName','Times','FontWeight','bold');
+ylabel('|u_{right} Error| (%)','FontSize',34,'FontName','Times','FontWeight','bold');
 fig.Position = [100, 100, 1400, 650];
 
 %v right error
 fig=figure;
-plot(elapsed_time_right,(right_v_err./EXTERNAL_HEIGHT).*100,'.-','Color','#fec636','LineWidth',1);
+%plot(elapsed_time_right,(right_v_err./EXTERNAL_HEIGHT).*100,'.-','Color','#fec636','LineWidth',1);
+plot(elapsed_time_right,(right_v_err./EXTERNAL_HEIGHT).*100,'.-','Color','#7f7f7f','LineWidth',1);
+set(gca,'FontSize',24)
 ylim([0,max_err]);
 title('Right Camera V-Coordinate Error','FontSize',32,'FontName','Times','FontWeight','bold');
-xlabel('Trial Time (s)','FontSize',32,'FontName','Times','FontWeight','bold');
-ylabel('|v_{right} Error| (%)','FontSize',32,'FontName','Times','FontWeight','bold');
+xlabel('Trial Time (s)','FontSize',34,'FontName','Times','FontWeight','bold');
+ylabel('|v_{right} Error| (%)','FontSize',34,'FontName','Times','FontWeight','bold');
 fig.Position = [100, 100, 1400, 650];
 
 
