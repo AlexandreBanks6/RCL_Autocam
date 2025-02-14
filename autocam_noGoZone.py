@@ -15,6 +15,7 @@ import costComputation
 import dVRKMotionSolver
 import OptimizationDataLogger
 import time
+from timeit import default_timer as timer
 
 
 ## GLOBALS
@@ -556,7 +557,7 @@ if __name__ == '__main__':
 
 
     while not rospy.is_shutdown():
-
+        start_time=timer()
         # Query the poses for psm1, psm3 and ecm
         try:
             psm1_pose_raw = psm1.measured_cp()
@@ -708,7 +709,8 @@ if __name__ == '__main__':
                 
                 print("Secondary Pose IK failed ")
 
-
+            end_time=timer()
+            elapsed_time=start_time-end_time
             #########################Write data row########################################
             data_row=[elapsed_time,[not jointLimitFlag,success,inNoGo,belowFloor,orientationFlag,proximity_flag],\
                 pm.toMatrix(psm1_pose_raw),pm.toMatrix(psm1_pose),pm.toMatrix(psm3_pose),pm.toMatrix(ECM_T_PSM_SUJ),\
@@ -798,6 +800,8 @@ if __name__ == '__main__':
             ecm_T_psm3_desired_Pose.M = point2centroid.M
 
 
+            end_time=timer()
+            elapsed_time=start_time-end_time
             #########################Write data row########################################
             data_row=[elapsed_time,[not jointLimitFlag,success,inNoGo,belowFloor,orientationFlag,proximity_flag],\
                 pm.toMatrix(psm1_pose_raw),pm.toMatrix(psm1_pose),pm.toMatrix(psm3_pose),pm.toMatrix(ECM_T_PSM_SUJ),\
