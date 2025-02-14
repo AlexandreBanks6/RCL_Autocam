@@ -6,13 +6,9 @@ import pandas as pd
 
 repeat_string=["Tx","Ty","Tz","R00","R01","R02","R10","R11","R12","R20","R21","R22"]
 CSV_HEADER=["Elapsed Time","System Time","Optimizer Flag","Solver Success","No Go Flag","Below Floor Flag","Orientation Flag","Proximity Flag","ecm_T_psm1_raw"]+\
-    repeat_string+["ecm_T_psm1_filtered"]+repeat_string+["ecm_T_psm3_raw"]+repeat_string+["ecm_T_psm_rcm"]+repeat_string+["ecm_T_psm3_des"]+repeat_string+\
+    repeat_string+["ecm_T_psm1_filtered"]+repeat_string+["ecm_T_psm3_raw"]+repeat_string+["ecm_T_psm_rcm"]+repeat_string+["ecm_T_psm3_des"]+repeat_string+["ecm_T_psm3_des_proximity"]+repeat_string+\
         ["ecm_T_psm3_command"]+repeat_string+["ecm_T_ring_target"]+repeat_string+["ecm_T_world"]+repeat_string+["q_curr",'q0','q1','q2','q3','q4','q5']+\
             ['q_solverOutput','q0','q1','q2','q3','q4','q5']
-
-,"q_des"]+['q0','q1','q2','q3','q4','q5']+["T_des"]+repeat_string+["T_target"]+repeat_string+\
-    ["worldFrame"]+repeat_string+["ECM_T_PSM_RCM"]+repeat_string+["psm3_T_cam"]+repeat_string+["offset"]+\
-    ['x','y','z','IK Trigered','ECM_T_PSM3']+repeat_string +['solverSuccess'] + ['q_solverOutput','q0','q1','q2','q3','q4','q5']
 
 ROOT_PATH='optimizationData'
 
@@ -59,60 +55,86 @@ class OptimizationDataLogger:
 
 
     def writeRow(self,data_list):
+        
+
         '''
         data_list contains a list where each index is:, in a list format
-        q_des, 
-        T_des, 
-        T_target, 
-        worldFrame,
-        ECM_T_PSM_RCM, 
-        psm3_T_cam,
-        offset,
-        IK Triggered Boolean,
-        ECM_T_PSM3,
-        solverSuccess,
-        q_solverOutput 
 
+        elapsed_time,
+        [optimizer_flag,
+        solver_success,
+        no_go_flag,
+        below_floor_flag,
+        orientation_flag,
+        proximity_flag],
+        ecm_T_psm1_raw,
+        ecm_T_psm1_filtered,
+        ecm_T_psm3_raw,
+        ecm_T_psm_rcm,
+        ecm_T_psm3_des,
+        ecm_T_psm3_des_proximity,
+        ecm_T_psm3_command,
+        ecm_T_ring_target,
+        ecm_T_world,
+        q_curr,
+        q_solveroutput
         '''
         #Gets system time
         curr_time=datetime.now()
         curr_time=curr_time.strftime("%H:%M:%S.%f")
 
         row_to_write=[] #Inits the row that we will write data to
+
+        #Writes elapsed time
+        row_to_write.append(data_list[0])
+        #Writes current time
         row_to_write.append(curr_time)
+        #Writes flags
+        row_to_write.extend(data_list[1])
         row_to_write.append("")
 
-        #6 joint params
-        row_to_write.extend(data_list[0])
-        row_to_write.append("")
-        row_to_write.extend(self.convertHomogeneousToCSVROW(data_list[1]))
-        row_to_write.append("")
+        #ecm_T_psm1_raw
         row_to_write.extend(self.convertHomogeneousToCSVROW(data_list[2]))
         row_to_write.append("")
+        #ecm_T_psm1_filtered
         row_to_write.extend(self.convertHomogeneousToCSVROW(data_list[3]))
         row_to_write.append("")
+
+        #ecm_T_psm3_raw
         row_to_write.extend(self.convertHomogeneousToCSVROW(data_list[4]))
         row_to_write.append("")
+
+        #ecm_T_psm_rcm
         row_to_write.extend(self.convertHomogeneousToCSVROW(data_list[5]))
-
-
-        #Adds the offset
         row_to_write.append("")
-        row_to_write.extend(data_list[6].tolist())
 
-        #Adds the boolean flag
-        row_to_write.append(data_list[7])
+        #ecm_T_psm3_des
+        row_to_write.extend(self.convertHomogeneousToCSVROW(data_list[6]))
         row_to_write.append("")
+
+        #ecm_T_psm3_des_proximity
+        row_to_write.extend(self.convertHomogeneousToCSVROW(data_list[7]))
+        row_to_write.append("")
+
+        #ecm_T_psm3_command
         row_to_write.extend(self.convertHomogeneousToCSVROW(data_list[8]))
-
-        #Adds the solver success 
-        row_to_write.append(data_list[9])
-
-        #Adds the computed joints from the solver
         row_to_write.append("")
-        row_to_write.extend(data_list[10])
 
-        
+        #ecm_T_ring_target
+        row_to_write.extend(self.convertHomogeneousToCSVROW(data_list[9]))
+        row_to_write.append("")
+
+        #ecm_T_world
+        row_to_write.extend(self.convertHomogeneousToCSVROW(data_list[10]))
+        row_to_write.append("")
+
+        #q_curr
+        row_to_write.extend(data_list[11])
+        row_to_write.append("")
+
+        #q_solveroutput
+        row_to_write.extend(data_list[12])
+        row_to_write.append("")       
         
         with open(self.record_filename,'a',newline='') as file_object:
             writer_object=csv.writer(file_object)
