@@ -532,7 +532,7 @@ if __name__ == '__main__':
 
     #Initializes datalogger to debug solver
     datalogger=OptimizationDataLogger.OptimizationDataLogger()
-    datalogger.initRecording()
+    datalogger.initRecording(offset,psm3_T_cam,points,psm1_T_R)
 
     OPTIMIZEPOSE = True #False = no optimization for pose when IK fails, True = optimization of pose when IK fails
 

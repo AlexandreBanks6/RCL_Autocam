@@ -23,7 +23,7 @@ class OptimizationDataLogger:
         self.file_count=1
         self.read_row_count=0
 
-    def initRecording(self):
+    def initRecording(self,calib_offset,psm3_T_cam,no_go_points,psm1_T_R):
         #Check if path exists
         if not os.path.exists(ROOT_PATH):
             os.makedirs(ROOT_PATH)
@@ -43,14 +43,21 @@ class OptimizationDataLogger:
             writer_object=csv.writer(file_object)
             writer_object.writerow(CSV_HEADER)
 
+             writer_object.writerow([""]) #Blank Space
+
             ########Writes the calibration params at top of .csv#######
-            writer_object.writerow()
+
+            #Offset between psm1 and psm3
+            writer_object.writerow(["offset:"]+[str(offset[0]),str(offset[1]),str(offset[2])])
+            writer_object.writerow(["no go points:"]+[str(no_go_points[0]),str(no_go_points[1]),str(no_go_points[2]),str(no_go_points[3]),str(no_go_points[4])])
+            writer_object.writerow(["psm3_T_cam:"]+self.convertHomogeneousToStringCSVROW(psm3_T_cam))
+            writer_object.writerow(["psm1_T_R:"]+self.convertHomogeneousToStringCSVROW(psm1_T_R))
 
 
-            
-
-
+            writer_object.writerow([""]) #Blank Space
             file_object.close()
+
+
     def writeRow(self,data_list):
         '''
         data_list contains a list where each index is:, in a list format
@@ -209,10 +216,22 @@ class OptimizationDataLogger:
         #Input: 4x4 numpy array for homogeneous transform
         #Output: 12x1 list with: "Tx","Ty","Tz","R00","R01","R02","R10","R11","R12","R20","R21","R22"
 
-        string_list=[transform[0,3],transform[1,3],transform[2,3],\
+        t_list=[transform[0,3],transform[1,3],transform[2,3],\
                     transform[0,0],transform[0,1],transform[0,2],\
                     transform[1,0],transform[1,1],transform[1,2],\
                     transform[2,0],transform[2,1],transform[2,2]]
+        
+        
+        return t_list
+
+    def convertHomogeneousToStringCSVROW(self,transform):
+        #Input: 4x4 numpy array for homogeneous transform
+        #Output: 12x1 string list with: "Tx","Ty","Tz","R00","R01","R02","R10","R11","R12","R20","R21","R22"
+
+        string_list=[str(transform[0,3]),str(transform[1,3]),str(transform[2,3]),\
+                    str(transform[0,0]),str(transform[0,1]),str(transform[0,2]),\
+                    str(transform[1,0]),str(transform[1,1]),str(transform[1,2]),\
+                    str(transform[2,0]),str(transform[2,1]),str(transform[2,2])]
         
         
         return string_list
