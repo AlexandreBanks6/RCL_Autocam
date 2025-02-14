@@ -5,7 +5,12 @@ import numpy as np
 import pandas as pd
 
 repeat_string=["Tx","Ty","Tz","R00","R01","R02","R10","R11","R12","R20","R21","R22"]
-CSV_HEADER=["System Time","q_des"]+['q0','q1','q2','q3','q4','q5']+["T_des"]+repeat_string+["T_target"]+repeat_string+\
+CSV_HEADER=["Elapsed Time","System Time","Optimizer Flag","Solver Success","No Go Flag","Below Floor Flag","Orientation Flag","Proximity Flag","ecm_T_psm1_raw"]+\
+    repeat_string+["ecm_T_psm1_filtered"]+repeat_string+["ecm_T_psm3_raw"]+repeat_string+["ecm_T_psm_rcm"]+repeat_string+["ecm_T_psm3_des"]+repeat_string+\
+        ["ecm_T_psm3_command"]+repeat_string+["ecm_T_ring_target"]+repeat_string+["ecm_T_world"]+repeat_string+["q_curr",'q0','q1','q2','q3','q4','q5']+\
+            ['q_solverOutput','q0','q1','q2','q3','q4','q5']
+
+,"q_des"]+['q0','q1','q2','q3','q4','q5']+["T_des"]+repeat_string+["T_target"]+repeat_string+\
     ["worldFrame"]+repeat_string+["ECM_T_PSM_RCM"]+repeat_string+["psm3_T_cam"]+repeat_string+["offset"]+\
     ['x','y','z','IK Trigered','ECM_T_PSM3']+repeat_string +['solverSuccess'] + ['q_solverOutput','q0','q1','q2','q3','q4','q5']
 
@@ -37,6 +42,14 @@ class OptimizationDataLogger:
         with open(self.record_filename,'w',newline='') as file_object:
             writer_object=csv.writer(file_object)
             writer_object.writerow(CSV_HEADER)
+
+            ########Writes the calibration params at top of .csv#######
+            writer_object.writerow()
+
+
+            
+
+
             file_object.close()
     def writeRow(self,data_list):
         '''
