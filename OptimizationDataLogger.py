@@ -10,6 +10,11 @@ CSV_HEADER=["Elapsed Time","System Time","Optimizer Flag","Solver Success","No G
         ["ecm_T_psm3_command"]+repeat_string+["ecm_T_ring_target"]+repeat_string+["ecm_T_world"]+repeat_string+["q_curr",'q0','q1','q2','q3','q4','q5']+\
             ['q_solverOutput','q0','q1','q2','q3','q4','q5']
 
+NOT_A_TRANSFORM=np.array([[-1,-1,-1,-1]],
+[-1,-1,-1,-1],
+[-1,-1,-1,-1],
+[-1,-1,-1,-1])
+
 ROOT_PATH='optimizationData'
 
 class OptimizationDataLogger:
